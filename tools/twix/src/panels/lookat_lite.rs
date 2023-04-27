@@ -28,18 +28,14 @@ pub fn subscribe(
     Some(value_buffer)
 }
 
-const PENALIZED_POSE_HEAD_PATH: &'static str = "penalized_pose.head";
+const PENALIZED_POSE_HEAD_PATH: &str = "penalized_pose.head";
 
 impl Panel for LookAtLitePanel {
     const NAME: &'static str = "Look-At Lite";
 
     fn new(nao: Arc<Nao>, _: Option<&Value>) -> Self {
         let (update_notify_sender, update_notify_receiver) = mpsc::channel(1);
-        let value_buffer = subscribe(
-            nao.clone(),
-            PENALIZED_POSE_HEAD_PATH,
-            update_notify_sender.clone(),
-        );
+        let value_buffer = subscribe(nao.clone(), PENALIZED_POSE_HEAD_PATH, update_notify_sender);
 
         Self {
             nao,
@@ -55,7 +51,7 @@ impl Widget for &mut LookAtLitePanel {
         ui.vertical(|ui| {
             let look_down_head_angles: Vector2<f32> = vector![0.0, 0.0];
             let look_up_head_angles: Vector2<f32> = vector![-10.0, 0.0];
-            let current_angles = self.head_angles.clone();
+            let current_angles = self.head_angles;
             if ui.button("Look Up").clicked() {
                 self.head_angles = Some(look_up_head_angles);
             }
@@ -76,7 +72,7 @@ impl Widget for &mut LookAtLitePanel {
                 match buffer.get_latest() {
                     Ok(value) => {
                         if self.update_notify_receiver.try_recv().is_ok() {
-                            let value_to_f32 = |v: &Value| v.as_f64().and_then(|v| Some(v as f32));
+                            let value_to_f32 = |v: &Value| v.as_f64().map(|v| v as f32);
                             if let (Some(pitch), Some(yaw)) = (
                                 value.get("pitch").and_then(value_to_f32),
                                 value.get("yaw").and_then(value_to_f32),

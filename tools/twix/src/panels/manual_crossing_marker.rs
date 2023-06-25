@@ -138,7 +138,8 @@ impl Widget for &mut ManualCrossingMarker {
                         let image_raw = bincode::deserialize::<Vec<u8>>(&image_data).unwrap();
                         let camera_matrix = self.camera_matrix_buffer.parse_latest().unwrap();
                         let joints = self.joints.parse_latest().ok();
-                        let uncompensated_joints = self.uncompensated_joints.parse_latest().ok();
+                        let uncompensated_joints =
+                            self.uncompensated_jointscargo.parse_latest().ok();
                         let measurement = Measurement {
                             position: CAPTURE_POSITION,
                             camera_matrix,

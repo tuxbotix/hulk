@@ -17,7 +17,7 @@ use glob::glob;
 use nalgebra::{point, vector, Point2, Similarity2};
 use serde::{Deserialize, Serialize};
 use serde_json::{from_reader, to_writer_pretty};
-use types::{CameraMatrix, CameraPosition, Line};
+use types::{CameraMatrix, CameraPosition, Joints, Line};
 
 use crate::{
     image_buffer::ImageBuffer,
@@ -38,6 +38,8 @@ struct Measurement {
     position: CameraPosition,
     camera_matrix: CameraMatrix,
     crossings: Crossings,
+    joints: Option<Joints<f64>>,
+    uncompensated_joints: Option<Joints<f64>>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -55,12 +57,14 @@ pub struct ManualCrossingMarker {
     field_dimensions_buffer: ValueBuffer,
     image_buffer: ImageBuffer,
     camera_matrix_buffer: ValueBuffer,
+    uncompensated_joints: ValueBuffer,
+    joints: ValueBuffer,
     crossings: Crossings,
     measurements: BTreeMap<String, ImageWithMeasurement>,
     current_id: Option<String>,
 }
 
-const CAPTURE_POSITION: CameraPosition = CameraPosition::Bottom;
+const CAPTURE_POSITION: CameraPosition = CameraPosition::Top;
 
 impl Panel for ManualCrossingMarker {
     const NAME: &'static str = "Manual Crossing Marker";
@@ -88,11 +92,25 @@ impl Panel for ManualCrossingMarker {
                 ),
             },
         });
+        let joints = nao.subscribe_output(CyclerOutput {
+            cycler: Cycler::Control,
+            output: Output::Main {
+                path: "sensor_data.positions".to_string(),
+            },
+        });
+        let uncompensated_joints = nao.subscribe_output(CyclerOutput {
+            cycler: Cycler::Control,
+            output: Output::Additional {
+                path: "positions".to_string(),
+            },
+        });
         Self {
             _nao: nao,
             field_dimensions_buffer,
             image_buffer,
             camera_matrix_buffer,
+            joints,
+            uncompensated_joints,
             crossings: Default::default(),
             measurements: BTreeMap::new(),
             current_id: None,
@@ -119,10 +137,14 @@ impl Widget for &mut ManualCrossingMarker {
                         let image_data = self.image_buffer.get_latest().unwrap();
                         let image_raw = bincode::deserialize::<Vec<u8>>(&image_data).unwrap();
                         let camera_matrix = self.camera_matrix_buffer.parse_latest().unwrap();
+                        let joints = self.joints.parse_latest().ok();
+                        let uncompensated_joints = self.uncompensated_joints.parse_latest().ok();
                         let measurement = Measurement {
                             position: CAPTURE_POSITION,
                             camera_matrix,
                             crossings: Default::default(),
+                            joints,
+                            uncompensated_joints,
                         };
                         println!("Clicked! {image_path} {json_path} {measurement:?}");
                         write(image_path, &image_raw).unwrap();

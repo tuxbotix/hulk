@@ -1,0 +1,170 @@
+{
+  "position": "Top",
+  "camera_matrix": {
+    "camera_to_head": {
+      "rotation": [
+        0.0,
+        0.010471784,
+        0.0,
+        0.99994516
+      ],
+      "translation": [
+        0.05871,
+        0.0,
+        0.06364
+      ]
+    },
+    "camera_to_ground": {
+      "rotation": [
+        -0.000045132663,
+        0.06878241,
+        -0.0069238297,
+        0.9976076
+      ],
+      "translation": [
+        0.08054537,
+        -0.00068435015,
+        0.4973209
+      ]
+    },
+    "ground_to_camera": {
+      "rotation": [
+        0.000045132663,
+        -0.06878241,
+        0.0069238297,
+        0.9976076
+      ],
+      "translation": [
+        -0.011535108,
+        0.000090557325,
+        -0.50366956
+      ]
+    },
+    "camera_to_robot": {
+      "rotation": [
+        0.00021571646,
+        0.031154243,
+        -0.0069206166,
+        0.99949056
+      ],
+      "translation": [
+        0.061286304,
+        -0.000848751,
+        0.27265704
+      ]
+    },
+    "robot_to_camera": {
+      "rotation": [
+        -0.00021571646,
+        -0.031154243,
+        0.0069206166,
+        0.99949056
+      ],
+      "translation": [
+        -0.044192187,
+        3.637979e-12,
+        -0.275945
+      ]
+    },
+    "focal_length": [
+      608.0,
+      609.6
+    ],
+    "optical_center": [
+      320.0,
+      240.0
+    ],
+    "field_of_view": [
+      0.9689559,
+      0.75012857
+    ],
+    "horizon": {
+      "left_horizon_y": 155.20467,
+      "right_horizon_y": 155.87897
+    }
+  },
+  "crossings": {
+    "border_line_0": null,
+    "border_line_1": null,
+    "goal_box_line_0": null,
+    "goal_box_line_1": null,
+    "connecting_line_0": null,
+    "connecting_line_1": null
+  },
+  "joints": {
+    "head": {
+      "yaw": -0.013848066329956056,
+      "pitch": 0.04137611389160156
+    },
+    "left_arm": {
+      "shoulder_pitch": 1.5508320331573486,
+      "shoulder_roll": 0.11347413063049316,
+      "elbow_yaw": -1.5585861206054688,
+      "elbow_roll": -0.010695934295654295,
+      "wrist_yaw": -0.0061779022216796875,
+      "hand": 0.02199995517730713
+    },
+    "right_arm": {
+      "shoulder_pitch": 1.569324016571045,
+      "shoulder_roll": -0.11355805397033691,
+      "elbow_yaw": 1.560036063194275,
+      "elbow_roll": 0.010779857635498049,
+      "wrist_yaw": 0.001492023468017578,
+      "hand": 0.007599949836730957
+    },
+    "left_leg": {
+      "ankle_pitch": -0.4157559871673584,
+      "ankle_roll": -0.001492023468017578,
+      "hip_pitch": -0.5092461109161377,
+      "hip_roll": 0.000041961669921875,
+      "hip_yaw_pitch": 0.000041961669921875,
+      "knee_pitch": 0.8497941493988037
+    },
+    "right_leg": {
+      "ankle_pitch": -0.4187400341033935,
+      "ankle_roll": 0.001575946807861328,
+      "hip_pitch": -0.5123980045318604,
+      "hip_roll": -0.001492023468017578,
+      "hip_yaw_pitch": 0.000041961669921875,
+      "knee_pitch": 0.8468098640441895
+    }
+  },
+  "uncompensated_joints": {
+    "head": {
+      "yaw": -0.00003323169948998839,
+      "pitch": 0.004938164725899696
+    },
+    "left_arm": {
+      "shoulder_pitch": 1.5707963705062866,
+      "shoulder_roll": 0.12999999523162842,
+      "elbow_yaw": -1.5707963705062866,
+      "elbow_roll": 0.0,
+      "wrist_yaw": 0.0,
+      "hand": 0.0
+    },
+    "right_arm": {
+      "shoulder_pitch": 1.5707963705062866,
+      "shoulder_roll": -0.12999999523162842,
+      "elbow_yaw": 1.5707963705062866,
+      "elbow_roll": -0.0,
+      "wrist_yaw": -0.0,
+      "hand": 0.0
+    },
+    "left_leg": {
+      "ankle_pitch": -0.4168083071708679,
+      "ankle_roll": 0.0,
+      "hip_pitch": -0.5096848607063293,
+      "hip_roll": -5.960464477539064e-8,
+      "hip_yaw_pitch": 0.0,
+      "knee_pitch": 0.8464931845664978
+    },
+    "right_leg": {
+      "ankle_pitch": -0.4168083071708679,
+      "ankle_roll": 0.0,
+      "hip_pitch": -0.5096848607063293,
+      "hip_roll": 5.960464477539064e-8,
+      "hip_yaw_pitch": 0.0,
+      "knee_pitch": 0.8464931845664978
+    }
+  }
+}

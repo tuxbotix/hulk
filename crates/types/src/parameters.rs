@@ -539,3 +539,15 @@ pub struct RobotDetection {
 pub struct PenaltyShotDirectionEstimation {
     pub moving_distance_threshold: f32,
 }
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, SerializeHierarchy)]
+pub struct CalibrationLineDetection {
+    pub enable: bool,
+    pub canny_low_threshold: f32,
+    pub canny_high_threshold: f32,
+    pub gaussian_sigma: f32,
+    pub maximum_number_of_lines: usize,
+    pub ransac_iterations: usize,
+    pub ransac_maximum_distance: f32,
+    pub ransac_maximum_gap: f32,
+}

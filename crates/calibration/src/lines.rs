@@ -4,15 +4,18 @@ use linear_algebra::Point2;
 use projection::{camera_matrix::CameraMatrix, Projection};
 
 #[derive(Clone)]
-pub struct Lines<Frame> {
+pub struct GoalBoxCalibrationLines<Frame> {
     pub border_line: Line2<Frame>,
     pub goal_box_line: Line2<Frame>,
     pub connecting_line: Line2<Frame>,
 }
 
-impl Lines<Pixel> {
-    pub fn project_to_ground(&self, matrix: &CameraMatrix) -> Result<Lines<Ground>, LinesError> {
-        Ok(Lines {
+impl GoalBoxCalibrationLines<Pixel> {
+    pub fn project_to_ground(
+        &self,
+        matrix: &CameraMatrix,
+    ) -> Result<GoalBoxCalibrationLines<Ground>, LinesError> {
+        Ok(GoalBoxCalibrationLines {
             border_line: project_line_and_map_error(matrix, self.border_line, "border line")?,
             goal_box_line: project_line_and_map_error(matrix, self.goal_box_line, "goal box line")?,
             connecting_line: project_line_and_map_error(

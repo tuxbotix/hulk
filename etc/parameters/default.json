@@ -421,7 +421,7 @@
       "walk_height": 0.22
     },
     "catching_steps": {
-      "use_catching_steps" : false,
+      "use_catching_steps": false,
       "toe_offset": 0.09,
       "heel_offset": -0.035,
       "max_adjustment": 0.05,
@@ -1434,5 +1434,20 @@
   },
   "physical_constants": {
     "gravity_acceleration": 9.81
+  },
+  "calibration_line_detection": {
+    "vision_top": {
+      "enable": true
+    },
+    "vision_bottom": {
+      "enable": true
+    },
+    "gaussian_sigma": 5.0,
+    "canny_low_threshold": 15.0,
+    "canny_high_threshold": 50.0,
+    "maximum_number_of_lines": 10,
+    "ransac_iterations": 1000,
+    "ransac_maximum_distance": 3.0,
+    "ransac_maximum_gap": 5.0
   }
 }

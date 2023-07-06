@@ -18,11 +18,28 @@ struct ParameterSubscriptions<DeserializedValueType> {
     value: DeserializedValueType,
 }
 
+struct SliderValueAndRanges<T> {
+    value: T,
+    low: T,
+    high: T,
+}
+
+enum SliderDataVariants {
+    F32 { data: SliderValueAndRanges<f32> },
+    U8 { data: SliderValueAndRanges<u8> },
+}
+
+// These subsets contains only the fields needed for the conversion
+struct SliderInfo {
+    pub name: String,
+    pub value_and_range: SliderDataVariants,
+}
+
 pub struct SegmenterCalibrationPanel {
     nao: Arc<Nao>,
     repository_parameters: Result<RepositoryParameters>,
-    field_color_subscriptions: [ParameterSubscriptions<Option<FieldColorDetection>>; 2],
-    image_segmenter_subscriptions: [ParameterSubscriptions<Option<ImageSegmenter>>; 2],
+    field_color_subscriptions: [ParameterSubscriptions<Option<Vec<SliderInfo>>>; 2],
+    image_segmenter_subscriptions: [ParameterSubscriptions<Option<Vec<SliderInfo>>>; 2],
 }
 
 const FIELD_COLOUR_KEY_BASE: &str = "field_color_detection.vision_";
@@ -35,6 +52,63 @@ const GREEN_LUMINANCE_RANGE: (u8, u8) = (0, u8::MAX);
 // Needed to avoid unnessesary diff creation at save-to-disk (caused by JSON: f64 -> struct: f32 -> JSON: f64 conversion)
 const FIELD_COLOUR_SKIPPED_FIELDS: &[&str] =
     &["red_chromaticity_threshold", "blue_chromaticity_threshold"];
+
+//     pub lower_green_chromaticity_threshold: f32,
+// pub upper_green_chromaticity_threshold: f32,
+// pub green_luminance_threshold: u8,
+const FIELD_COLOUR_PARAMETERS: [SliderInfo; 3] = [
+    SliderInfo {
+        name: "lower_green_chromaticity_threshold".to_string(),
+        value_and_range: SliderValueAndRanges::F32 {
+            value: 0.0,
+            low: 0.0,
+            high: 1.0,
+        },
+    },
+    SliderInfo {
+        name: "upper_green_chromaticity_threshold".to_string(),
+        value_and_range: SliderValueAndRanges::F32 {
+            value: 0.0,
+            low: 0.0,
+            high: 1.0,
+        },
+    },
+    SliderInfo {
+        name: "green_luminance_threshold".to_string(),
+        value_and_range: SliderValueAndRanges::U8 {
+            value: 0,
+            low: 0,
+            high: u8::MAX,
+        },
+    },
+];
+
+const IMAGE_SEGMENTER_PARAMETERS: [SliderInfo; 3] = [
+    SliderInfo {
+        name: "horizontal_stride".to_string(),
+        value_and_range: SliderValueAndRanges::U8 {
+            value: 1,
+            low: 1,
+            high: 25,
+        },
+    },
+    SliderInfo {
+        name: "vertical_stride".to_string(),
+        value_and_range: SliderValueAndRanges::U8 {
+            value: 1,
+            low: 1,
+            high: 25,
+        },
+    },
+    SliderInfo {
+        name: "vertical_edge_threshold".to_string(),
+        value_and_range: SliderValueAndRanges::U8 {
+            value: 0,
+            low: 0,
+            high: u8::MAX,
+        },
+    },
+];
 
 impl Panel for SegmenterCalibrationPanel {
     const NAME: &'static str = "Segmenter Calibration";

@@ -8,7 +8,10 @@ use serde_json::{json, Value};
 
 use crate::{nao::Nao, twix_painter::TwixPainter};
 
-use super::overlays::{BallDetection, FeetDetection, LineDetection, PenaltyBoxes, RobotDetection};
+use super::overlays::{
+    BallDetection, CalibrationLineDetection, FeetDetection, LineDetection, PenaltyBoxes,
+    RobotDetection,
+};
 
 pub trait Overlay {
     const NAME: &'static str;
@@ -82,6 +85,7 @@ pub struct Overlays {
     pub penalty_boxes: EnabledOverlay<PenaltyBoxes>,
     pub feet_detection: EnabledOverlay<FeetDetection>,
     pub robot_detection: EnabledOverlay<RobotDetection>,
+    pub calibration_line_detection: EnabledOverlay<CalibrationLineDetection>,
 }
 
 impl Overlays {
@@ -90,13 +94,15 @@ impl Overlays {
         let ball_detection = EnabledOverlay::new(nao.clone(), storage, true, selected_cycler);
         let penalty_boxes = EnabledOverlay::new(nao.clone(), storage, true, selected_cycler);
         let feet_detection = EnabledOverlay::new(nao.clone(), storage, true, selected_cycler);
-        let robot_detection = EnabledOverlay::new(nao, storage, true, selected_cycler);
+        let robot_detection = EnabledOverlay::new(nao.clone(), storage, true, selected_cycler);
+        let calibration_line_detection = EnabledOverlay::new(nao, storage, true, selected_cycler);
         Self {
             line_detection,
             ball_detection,
             penalty_boxes,
             feet_detection,
             robot_detection,
+            calibration_line_detection,
         }
     }
 
@@ -106,6 +112,8 @@ impl Overlays {
         self.penalty_boxes.update_cycler(selected_cycler);
         self.feet_detection.update_cycler(selected_cycler);
         self.robot_detection.update_cycler(selected_cycler);
+        self.calibration_line_detection
+            .update_cycler(selected_cycler);
     }
 
     pub fn combo_box(&mut self, ui: &mut Ui, selected_cycler: Cycler) {
@@ -115,6 +123,8 @@ impl Overlays {
             self.penalty_boxes.checkbox(ui, selected_cycler);
             self.feet_detection.checkbox(ui, selected_cycler);
             self.robot_detection.checkbox(ui, selected_cycler);
+            self.calibration_line_detection
+                .checkbox(ui, selected_cycler);
         });
     }
 
@@ -124,6 +134,7 @@ impl Overlays {
         let _ = self.penalty_boxes.paint(painter);
         let _ = self.feet_detection.paint(painter);
         let _ = self.robot_detection.paint(painter);
+        let _ = self.calibration_line_detection.paint(painter);
         Ok(())
     }
 
@@ -134,6 +145,7 @@ impl Overlays {
             "penalty_boxes": self.penalty_boxes.save(),
             "feet_detection": self.feet_detection.save(),
             "robot_detection": self.robot_detection.save(),
+            "calibration_line_detection": self.calibration_line_detection.save(),
         })
     }
 }

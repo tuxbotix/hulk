@@ -1,27 +1,29 @@
-use std::{
-    num::NonZeroU32,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
+use crate::image_ops::{generate_luminance_image, gray_image_to_hulks_grayscale_image};
 use calibration::lines::GoalBoxCalibrationLines;
 use color_eyre::Result;
 use context_attribute::context;
 use coordinate_systems::Pixel;
-use fast_image_resize::{DynamicImageView, FilterType, ImageView, ResizeAlg, Resizer};
+use fast_image_resize::FilterType;
 use framework::{AdditionalOutput, MainOutput};
 use geometry::line::{Line, Line2};
 use image::{GrayImage, Luma, RgbImage};
 use imageproc::{edges::canny, filter::gaussian_blur_f32, map::map_colors};
-use linear_algebra::{distance, point, Point2};
+use linear_algebra::{distance, point};
 use lstsq::lstsq;
 use nalgebra::{DMatrix, DVector};
-use ransac::ClusteringRansac;
+use projection::camera_matrix::CameraMatrix;
+use rand::SeedableRng;
+use rand_chacha::ChaChaRng;
+use ransac::{ClusteringRansac, Ransac};
 use types::{
     camera_position::CameraPosition, grayscale_image::GrayscaleImage, ycbcr422_image::YCbCr422Image,
 };
 
 pub struct CalibrationLineDetection {
     last_processed_instance: Instant,
+    random_state: ChaChaRng,
 }
 
 #[context]
@@ -40,7 +42,7 @@ pub struct CycleContext {
     pub ransac_maximum_distance:
         Parameter<f32, "calibration_line_detection.ransac_maximum_distance">,
     pub ransac_maximum_gap: Parameter<f32, "calibration_line_detection.ransac_maximum_gap">,
-    pub resized_width: Parameter<u32, "calibration_line_detection.resized_width">,
+    pub use_clustering_ransac: Parameter<bool, "calibration_line_detection.use_clustering_ransac">,
     pub debug_image_resized_width:
         Parameter<u32, "calibration_line_detection.debug_image_resized_width">,
     pub run_next_cycle_after_ms:
@@ -53,6 +55,7 @@ pub struct CycleContext {
     // pub camera_position_of_calibration_lines_request:
     //     RequiredInput<Option<CameraPosition>, "requested_calibration_lines?">,
     pub image: Input<YCbCr422Image, "image">,
+    pub camera_matrix: RequiredInput<Option<CameraMatrix>, "camera_matrix?">,
     pub difference_image:
         AdditionalOutput<GrayscaleImage, "calibration_line_detection.difference_image">,
     pub blurred_image: AdditionalOutput<GrayscaleImage, "calibration_line_detection.blurred_image">,
@@ -74,6 +77,7 @@ impl CalibrationLineDetection {
     pub fn new(_context: CreationContext) -> Result<Self> {
         Ok(Self {
             last_processed_instance: Instant::now(),
+            random_state: ChaChaRng::from_entropy(),
         })
     }
 
@@ -89,21 +93,12 @@ impl CalibrationLineDetection {
             });
         }
 
-        let resized_image_size = {
-            let aspect_ratio = context.image.height() as f32 / context.image.width() as f32;
-            let expected_width = *context.resized_width;
-            (
-                expected_width,
-                (expected_width as f32 * aspect_ratio) as u32,
-            )
-        };
-
         let debug_image_size = {
             let expected_width = *context.debug_image_resized_width;
-            if expected_width >= resized_image_size.0 {
+            if expected_width >= context.image.width() {
                 None
             } else {
-                let aspect_ratio = resized_image_size.1 as f32 / resized_image_size.0 as f32;
+                let aspect_ratio = context.image.height() as f32 / context.image.width() as f32;
 
                 Some((
                     expected_width,
@@ -115,18 +110,16 @@ impl CalibrationLineDetection {
         let processing_start = Instant::now();
         let difference = {
             if *context.skip_rgb_based_difference_image {
-                generate_luminance_image(context.image, resized_image_size)
-                    .expect("Generating luma image failed")
+                generate_luminance_image(context.image, None).expect("Generating luma image failed")
             } else {
                 let rgb = RgbImage::from(context.image);
 
                 let difference = rgb_image_to_difference(&rgb);
 
-                let resized = gray_image_resize(&difference, resized_image_size, None);
                 GrayImage::from_vec(
-                    resized.width().get(),
-                    resized.height().get(),
-                    resized.into_vec(),
+                    difference.width(),
+                    difference.height(),
+                    difference.into_vec(),
                 )
                 .expect("GrayImage construction after resize failed")
             }
@@ -143,15 +136,19 @@ impl CalibrationLineDetection {
         );
         let elapsed_time_after_edges = processing_start.elapsed();
 
-        // Disabled this for now
-        // let lines = detect_lines(
-        //     &edges,
-        //     *context.maximum_number_of_lines,
-        //     *context.ransac_iterations,
-        //     *context.ransac_maximum_distance,
-        //     *context.ransac_maximum_gap,
-        // );
-        let lines: Option<Vec<Line2<Pixel>>> = None;
+        let lines = detect_lines(
+            &edges,
+            &mut self.random_state,
+            *context.maximum_number_of_lines,
+            *context.ransac_iterations,
+            *context.ransac_maximum_distance,
+            *context.ransac_maximum_gap,
+            *context.use_clustering_ransac,
+            context
+                .camera_matrix
+                .horizon
+                .map(|h| h.horizon_y_minimum() as u32),
+        );
         let elapsed_time_after_lines = processing_start.elapsed();
 
         let calibration_lines = lines
@@ -217,51 +214,6 @@ impl CalibrationLineDetection {
     }
 }
 
-#[inline]
-fn gray_image_resize(
-    image: &GrayImage,
-    // new_image_view: &mut DynamicImageViewMut,
-    new_size: (u32, u32),
-    filter: Option<FilterType>,
-) -> fast_image_resize::Image<'_> {
-    let image_view = ImageView::from_buffer(
-        NonZeroU32::new(image.width()).unwrap(),
-        NonZeroU32::new(image.height()).unwrap(),
-        &image.as_raw(),
-    )
-    .expect("ImageView creation failed!");
-    let new_width = NonZeroU32::new(new_size.0).unwrap();
-    let new_height = NonZeroU32::new(new_size.1).unwrap();
-    let mut new_image =
-        fast_image_resize::Image::new(new_width, new_height, image_view.pixel_type());
-    let mut resizer = Resizer::new(ResizeAlg::Convolution(
-        filter.unwrap_or_else(|| FilterType::Hamming),
-    ));
-    let mut new_image_view = new_image.view_mut();
-
-    resizer
-        .resize(&DynamicImageView::U8(image_view), &mut new_image_view)
-        .unwrap();
-    new_image
-}
-
-fn gray_image_to_hulks_grayscale_image(
-    image: &GrayImage,
-    new_size: Option<(u32, u32)>,
-    filter: Option<FilterType>,
-) -> GrayscaleImage {
-    if let Some(new_size) = new_size {
-        let resized = gray_image_resize(image, new_size, filter);
-        GrayscaleImage::from_vec(
-            resized.width().get(),
-            resized.height().get(),
-            resized.into_vec(),
-        )
-    } else {
-        GrayscaleImage::from_vec(image.width(), image.height(), image.as_raw().clone())
-    }
-}
-
 pub fn rgb_image_to_difference(rgb: &RgbImage) -> GrayImage {
     map_colors(rgb, |color| {
         Luma([
@@ -281,85 +233,78 @@ pub fn rgb_pixel_to_difference(rgb: &image::Rgb<u8>) -> u8 {
     maximum - minimum
 }
 
-fn generate_luminance_image(image: &YCbCr422Image, new_size: (u32, u32)) -> Option<GrayImage> {
-    let grayscale_buffer: Vec<_> = image
-        .buffer()
-        .iter()
-        .flat_map(|pixel| [pixel.y1, pixel.y2])
-        .collect();
-    let y_image = ImageView::from_buffer(
-        NonZeroU32::new(image.width()).unwrap(),
-        NonZeroU32::new(image.height()).unwrap(),
-        &grayscale_buffer,
-    );
-    if let Ok(y_image) = y_image {
-        let new_width = NonZeroU32::new(new_size.0).unwrap();
-        let new_height = NonZeroU32::new(new_size.1).unwrap();
-        let mut new_image =
-            fast_image_resize::Image::new(new_width, new_height, y_image.pixel_type());
-        let mut resizer = Resizer::new(ResizeAlg::Convolution(FilterType::Hamming));
-        resizer
-            .resize(&DynamicImageView::U8(y_image), &mut new_image.view_mut())
-            .unwrap();
-        GrayImage::from_vec(new_width.get(), new_height.get(), new_image.into_vec())
-    } else {
-        None
-    }
-}
-
 fn detect_lines(
     edges: &GrayImage,
+    random_state: &mut ChaChaRng,
     maximum_number_of_lines: usize,
     ransac_iterations: usize,
     ransac_maximum_distance: f32,
     ransac_maximum_gap: f32,
+    use_clustered_ransac: bool,
+    upper_points_exclusion_threshold_y: Option<u32>,
 ) -> Option<Vec<Line2<Pixel>>> {
+    let y_exclusion_threshold: u32 = if let Some(threshold) = upper_points_exclusion_threshold_y {
+        threshold
+    } else {
+        0
+    };
     let edge_points = edges
         .enumerate_pixels()
         .filter_map(|(x, y, color)| {
-            if color[0] > 127 {
+            if color[0] > 127 && y > y_exclusion_threshold {
                 Some(point![x as f32, y as f32])
             } else {
                 None
             }
         })
         .collect();
-    let mut ransac = ClusteringRansac::<Pixel>::new(edge_points);
+
     let mut lines = vec![];
-    for _ in 0..maximum_number_of_lines {
-        let used_points = ransac.next_line_cluster(
-            ransac_iterations,
-            ransac_maximum_distance,
-            ransac_maximum_gap,
-        );
-        if used_points.is_empty() {
-            break;
+
+    if use_clustered_ransac {
+        let mut ransac = ClusteringRansac::new(edge_points);
+        for _ in 0..maximum_number_of_lines {
+            let used_points = ransac.next_line_cluster(
+                ransac_iterations,
+                ransac_maximum_distance,
+                ransac_maximum_gap,
+            );
+            if used_points.is_empty() {
+                break;
+            }
+            let start_x = used_points
+                .iter()
+                .min_by(|left, right| left.x().total_cmp(&right.x()))
+                .unwrap()
+                .x();
+            let end_x = used_points
+                .iter()
+                .max_by(|left, right| left.x().total_cmp(&right.x()))
+                .unwrap()
+                .x();
+            let (mut x, y) =
+                used_points
+                    .into_iter()
+                    .fold((vec![], vec![]), |(mut x, mut y), point| {
+                        x.push(point.x());
+                        y.push(point.y());
+                        (x, y)
+                    });
+            x.resize(x.len() * 2, 1.0);
+            let x = DMatrix::from_vec(x.len() / 2, 2, x);
+            let y = DVector::from_vec(y);
+            let result = lstsq(&x, &y, 1e-7).ok()?;
+            let start = point![start_x, (start_x * result.solution[0] + result.solution[1])];
+            let end = point![end_x, (end_x * result.solution[0] + result.solution[1])];
+            lines.push(Line(start, end));
         }
-        let start_x = used_points
-            .iter()
-            .min_by(|left, right| left.x().total_cmp(&right.x()))
-            .unwrap()
-            .x();
-        let end_x = used_points
-            .iter()
-            .max_by(|left, right| left.x().total_cmp(&right.x()))
-            .unwrap()
-            .x();
-        let (mut x, y) = used_points
-            .into_iter()
-            .fold((vec![], vec![]), |(mut x, mut y), point| {
-                x.push(point.x());
-                y.push(point.y());
-                (x, y)
-            });
-        x.resize(x.len() * 2, 1.0);
-        let x = DMatrix::from_vec(x.len() / 2, 2, x);
-        let y = DVector::from_vec(y);
-        let result = lstsq(&x, &y, 1e-7).ok()?;
-        let start: Point2<Pixel> =
-            point![start_x, (start_x * result.solution[0] + result.solution[1])];
-        let end: Point2<Pixel> = point![end_x, (end_x * result.solution[0] + result.solution[1])];
-        lines.push(Line(start, end));
+    } else {
+        let mut ransac = Ransac::new(edge_points);
+
+        let ransac_result = ransac.next_line(random_state, ransac_iterations, 2.0, 2.0);
+        if let Some(line) = ransac_result.line {
+            lines.push(line);
+        }
     }
     Some(lines)
 }
@@ -412,8 +357,11 @@ fn filter_and_extract_calibration_lines(
     } else {
         lowest_line.1
     };
-
-    todo!();
+    Some(GoalBoxCalibrationLines {
+        connecting_line: lowest_line,
+        border_line: _second_lowest_line.0,
+        goal_box_line: _corner_to_line_end[0].0,
+    })
 }
 
 enum LineEdgePosition {
@@ -432,8 +380,7 @@ fn line_edge_position(line: Line2<Pixel>, blurred: &GrayImage) -> LineEdgePositi
     let sum: i32 = (x_start..x_end)
         .map(|x| {
             let y = (slope * x as f32 + y_axis_intercept) as u32;
-            let upper = blurred.get_pixel_checked(x, y - 20);
-            let lower = blurred.get_pixel_checked(x, y + 20);
+            let (upper, lower) = get_upper_lower_pixels(blurred, 20, x, y);
             match (upper, lower) {
                 (Some(upper), Some(lower)) => lower[0] as i32 - upper[0] as i32,
                 _ => 0,
@@ -445,4 +392,25 @@ fn line_edge_position(line: Line2<Pixel>, blurred: &GrayImage) -> LineEdgePositi
     } else {
         LineEdgePosition::Lower
     }
+}
+
+fn get_upper_lower_pixels(
+    blurred: &image::ImageBuffer<Luma<u8>, Vec<u8>>,
+    range: u32,
+    x: u32,
+    y: u32,
+) -> (Option<&Luma<u8>>, Option<&Luma<u8>>) {
+    let y_upper = y as i32 - range as i32;
+    let upper = if y_upper >= 0 {
+        blurred.get_pixel_checked(x, y_upper as u32)
+    } else {
+        None
+    };
+    let y_lower = y as i32 + range as i32;
+    let lower = if y_upper < blurred.height() as i32 {
+        blurred.get_pixel_checked(x, y_lower as u32)
+    } else {
+        None
+    };
+    (upper, lower)
 }

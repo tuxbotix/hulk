@@ -1,12 +1,17 @@
 use coordinate_systems::{Ground, Pixel};
 use geometry::line::{Line, Line2};
 use linear_algebra::Point2;
+use path_serde::{PathDeserialize, PathIntrospect, PathSerialize};
 use projection::{camera_matrix::CameraMatrix, Projection};
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Deserialize, Serialize, PathSerialize, PathDeserialize, PathIntrospect)]
 pub struct GoalBoxCalibrationLines<Frame> {
+    #[path_serde(leaf)]
     pub border_line: Line2<Frame>,
+    #[path_serde(leaf)]
     pub goal_box_line: Line2<Frame>,
+    #[path_serde(leaf)]
     pub connecting_line: Line2<Frame>,
 }
 

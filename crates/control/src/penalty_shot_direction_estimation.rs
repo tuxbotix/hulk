@@ -15,6 +15,8 @@ pub struct CreationContext {
     pub field_dimensions: Parameter<FieldDimensions, "field_dimensions">,
     pub moving_distance_threshold:
         Parameter<f32, "penalty_shot_direction_estimation.moving_distance_threshold">,
+    pub minimum_velocity_threshold:
+        Parameter<f32, "penalty_shot_direction_estimation.minimum_velocity_threshold">,
 }
 
 #[context]
@@ -22,6 +24,8 @@ pub struct CycleContext {
     pub field_dimensions: Parameter<FieldDimensions, "field_dimensions">,
     pub moving_distance_threshold:
         Parameter<f32, "penalty_shot_direction_estimation.moving_distance_threshold">,
+    pub minimum_velocity_threshold:
+        Parameter<f32, "penalty_shot_direction_estimation.minimum_velocity_threshold">,
 
     pub ball_position: RequiredInput<Option<BallPosition>, "ball_position?">,
     pub game_controller_state: RequiredInput<Option<GameControllerState>, "game_controller_state?">,
@@ -56,6 +60,8 @@ impl PenaltyShotDirectionEstimation {
                         - context.field_dimensions.penalty_marker_distance)
                         .abs()
                         > *context.moving_distance_threshold
+                        && context.ball_position.velocity.norm()
+                            > *context.minimum_velocity_threshold
                     {
                         if context.ball_position.position.y >= 0.0 {
                             self.last_shot_direction = PenaltyShotDirection::Left;

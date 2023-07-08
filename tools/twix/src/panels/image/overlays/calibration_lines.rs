@@ -86,7 +86,7 @@ impl Overlay for CalibrationLineDetection {
         //         color: Color32::YELLOW,
         //     },
         // );
-        println!("ued points:{:?}", used_points.len());
+
         for circle_point in used_points {
             painter.circle_stroke(circle_point, 2.0, Stroke::new(1.0, Color32::YELLOW));
         }

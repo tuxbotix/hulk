@@ -129,7 +129,7 @@ fn best_fit_line(points: &[Point2<f32>]) -> Line2 {
     Line(line_start, line_end)
 }
 
-fn find_centre_of_group(group: &[Point2<f32>]) -> Point2<f32> {
+pub(crate) fn find_centre_of_group(group: &[Point2<f32>]) -> Point2<f32> {
     Point2::<f32> {
         coords: group
             .iter()

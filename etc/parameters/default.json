@@ -1175,6 +1175,8 @@
     "debug_image_resized_width": 300,
     "run_next_cycle_after_ms": 100,
     "skip_rgb_based_difference_image": false,
-    "use_clustering_ransac": true
+    "use_clustering_ransac": true,
+    "circle_thickness_threshold": 0.06,
+    "center_to_center_distance_factor": 0.4
   }
 }

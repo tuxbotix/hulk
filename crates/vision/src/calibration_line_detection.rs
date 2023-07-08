@@ -1,6 +1,7 @@
 use std::time::{Duration, Instant};
 
 use crate::{
+    field_border_detection::find_centre_of_group,
     image_ops::{generate_luminance_image, gray_image_to_hulks_grayscale_image},
     ransac::{ClusteringRansac, Ransac},
 };
@@ -50,6 +51,10 @@ pub struct CycleContext {
     // Heavier calculation due to rgb conversion
     pub skip_rgb_based_difference_image:
         Parameter<bool, "calibration_line_detection.skip_rgb_based_difference_image">,
+    pub circle_thickness_threshold:
+        Parameter<f32, "calibration_line_detection.circle_thickness_threshold">,
+    pub center_to_center_distance_factor:
+        Parameter<f32, "calibration_line_detection.center_to_center_distance_factor">,
 
     // TODO activate this once calibration controller can emit this value
     // pub camera_position_of_calibration_lines_request:
@@ -156,7 +161,8 @@ impl CalibrationLineDetection {
             context.camera_matrix,
             *context.maximum_number_of_lines,
             *context.ransac_iterations,
-            *context.ransac_maximum_distance,
+            *context.circle_thickness_threshold,
+            *context.center_to_center_distance_factor,
         );
 
         let elapsed_time_after_circles = processing_start.elapsed();
@@ -183,10 +189,16 @@ impl CalibrationLineDetection {
 
         context.unfiltered_lines.fill_if_subscribed(|| lines);
 
-        if let Some((_circle, _used_points_gnd, used_points_px)) = circle_and_used_points {
-            context
-                .circle_used_points
-                .fill_if_subscribed(|| used_points_px);
+        if let Some((_circle, used_points_robot)) = circle_and_used_points {
+            context.circle_used_points.fill_if_subscribed(|| {
+                used_points_robot
+                    .iter()
+                    .map(|point| {
+                        context.camera_matrix.ground_to_pixel(*point)
+                        .expect("this transformation *must* succeed as the ground point comes from an existing pixel")
+                    })
+                    .collect()
+            });
         }
         context
             .cycle_time
@@ -277,14 +289,15 @@ fn detect_circle(
     camera_matrix: &CameraMatrix,
     maximum_number_of_retries: usize,
     ransac_iterations: usize,
-    ransac_maximum_distance: f32,
-) -> Option<(Circle, Vec<Point2<f32>>, Vec<Point2<f32>>)> {
-    let radius_variance = 0.1; // 10cm
+    circle_thickness_threshold: f32,
+    centre_to_centre_distance_factor: f32,
+) -> Option<(Circle, Vec<Point2<f32>>)> {
     let centre_distance_penalty_threshold = 10.0; // field length
+    let radius = 0.75;
     let circle_fitting_model = CircleFittingModel {
         candidate_circle: Circle {
             center: point![2.0, 0.0], // relative to robot
-            radius: 0.75,
+            radius: radius,
         }
         .into(),
         centre_distance_penalty_threshold,
@@ -299,13 +312,15 @@ fn detect_circle(
     let mut ransac = RansacCircleWithRadius::new(circle_fitting_model, edge_points_in_ground);
 
     for _ in 0..maximum_number_of_retries {
-        let result = ransac.next_candidate(ransac_iterations, radius_variance);
+        let result = ransac.next_candidate(ransac_iterations, circle_thickness_threshold);
         if let Some(circle) = result.output {
-            let used_points_px = result
-                .used_points
-                .iter()
-                .map(|point| camera_matrix.ground_to_pixel(*point).expect("this transformation *must* succeed as the ground point comes from an existing pixel")).collect();
-            return Some((circle.into(), result.used_points, used_points_px));
+            let point_cloud_centre = find_centre_of_group(&result.used_points);
+            let centre_difference = (point_cloud_centre - circle.centre).norm();
+
+            if centre_difference < radius *    {
+                // print!("inlier_ratio{:?}", result.inlier_ratio);
+                return Some((circle.into(), result.used_points));
+            }
         }
     }
     None

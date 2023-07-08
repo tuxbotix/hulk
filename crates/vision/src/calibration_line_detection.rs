@@ -317,7 +317,7 @@ fn detect_circle(
             let point_cloud_centre = find_centre_of_group(&result.used_points);
             let centre_difference = (point_cloud_centre - circle.centre).norm();
 
-            if centre_difference < radius *    {
+            if centre_difference < radius * centre_to_centre_distance_factor {
                 // print!("inlier_ratio{:?}", result.inlier_ratio);
                 return Some((circle.into(), result.used_points));
             }

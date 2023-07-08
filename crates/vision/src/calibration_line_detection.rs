@@ -4,18 +4,22 @@ use crate::{
     image_ops::{generate_luminance_image, gray_image_to_hulks_grayscale_image},
     ransac::{ClusteringRansac, Ransac},
 };
-use calibration::lines::GoalBoxCalibrationLines;
+use calibration::{
+    circles::{circle_fitting_model::CircleFittingModel, circle_ransac::RansacCircleWithRadius},
+    lines::GoalBoxCalibrationLines,
+};
 use color_eyre::Result;
 use context_attribute::context;
 use fast_image_resize::FilterType;
 use framework::{AdditionalOutput, MainOutput};
 use image::{GrayImage, Luma, RgbImage};
-use imageproc::{edges::canny, filter::gaussian_blur_f32, map::map_colors};
+use imageproc::{edges::canny, filter::gaussian_blur_f32, map::map_colors, point::Point};
 use lstsq::lstsq;
-use nalgebra::{distance, point, DMatrix, DVector};
+use nalgebra::{distance, point, DMatrix, DVector, Point2};
+use projection::Projection;
 use types::{
     grayscale_image::GrayscaleImage, ycbcr422_image::YCbCr422Image, CameraMatrix, CameraPosition,
-    Line, Line2,
+    Circle, Line, Line2,
 };
 
 pub struct CalibrationLineDetection {
@@ -61,6 +65,8 @@ pub struct CycleContext {
     pub timings_for_steps_ms:
         AdditionalOutput<Vec<(String, u128)>, "calibration_line_detection.timings_for_steps">,
     pub cycle_time: AdditionalOutput<Duration, "calibration_line_detection.cycle_time">,
+    pub circle_used_points:
+        AdditionalOutput<Vec<Point2<f32>>, "calibration_line_detection.circle_used_points">,
 }
 
 #[context]
@@ -131,16 +137,29 @@ impl CalibrationLineDetection {
         );
         let elapsed_time_after_edges = processing_start.elapsed();
 
-        let lines = detect_lines(
+        let filtered_points = get_filtered_edge_points(
             &edges,
+            Some(context.camera_matrix.horizon.horizon_y_minimum() as u32),
+        );
+        let lines = detect_lines(
+            filtered_points.clone(),
             *context.maximum_number_of_lines,
             *context.ransac_iterations,
             *context.ransac_maximum_distance,
             *context.ransac_maximum_gap,
             *context.use_clustering_ransac,
-            Some(context.camera_matrix.horizon.horizon_y_minimum() as u32),
         );
         let elapsed_time_after_lines = processing_start.elapsed();
+
+        let circle_and_used_points = detect_circle(
+            filtered_points,
+            context.camera_matrix,
+            *context.maximum_number_of_lines,
+            *context.ransac_iterations,
+            *context.ransac_maximum_distance,
+        );
+
+        let elapsed_time_after_circles = processing_start.elapsed();
 
         let calibration_lines = lines
             .as_ref()
@@ -164,33 +183,42 @@ impl CalibrationLineDetection {
 
         context.unfiltered_lines.fill_if_subscribed(|| lines);
 
+        if let Some((_circle, _used_points_gnd, used_points_px)) = circle_and_used_points {
+            context
+                .circle_used_points
+                .fill_if_subscribed(|| used_points_px);
+        }
         context
             .cycle_time
             .fill_if_subscribed(|| elapsed_time_after_all_processing);
         context.timings_for_steps_ms.fill_if_subscribed(|| {
             vec![
                 (
-                    "difference".to_string(),
+                    "difference_ms".to_string(),
                     elapsed_time_after_difference.as_millis(),
                 ),
                 (
-                    "blurred".to_string(),
+                    "blurred_ms".to_string(),
                     (elapsed_time_after_blurred - elapsed_time_after_difference).as_millis(),
                 ),
                 (
-                    "edges".to_string(),
+                    "edges_ms".to_string(),
                     (elapsed_time_after_edges - elapsed_time_after_blurred).as_millis(),
                 ),
                 (
-                    "lines".to_string(),
+                    "lines_ms".to_string(),
                     (elapsed_time_after_lines - elapsed_time_after_edges).as_millis(),
                 ),
                 (
-                    "line filtering".to_string(),
-                    (elapsed_time_after_all_processing - elapsed_time_after_lines).as_millis(),
+                    "circle_us".to_string(),
+                    (elapsed_time_after_circles - elapsed_time_after_lines).as_micros(),
                 ),
                 (
-                    "elapsed_time_after_all_processing".to_string(),
+                    "line filtering_ms".to_string(),
+                    (elapsed_time_after_all_processing - elapsed_time_after_circles).as_millis(),
+                ),
+                (
+                    "elapsed_time_after_all_processing_ms".to_string(),
                     (elapsed_time_after_all_processing).as_millis(),
                 ),
             ]
@@ -224,21 +252,16 @@ pub fn rgb_pixel_to_difference(rgb: &image::Rgb<u8>) -> u8 {
     maximum - minimum
 }
 
-fn detect_lines(
+fn get_filtered_edge_points(
     edges: &GrayImage,
-    maximum_number_of_lines: usize,
-    ransac_iterations: usize,
-    ransac_maximum_distance: f32,
-    ransac_maximum_gap: f32,
-    use_clustered_ransac: bool,
     upper_points_exclusion_threshold_y: Option<u32>,
-) -> Option<Vec<Line2>> {
+) -> Vec<Point2<f32>> {
     let y_exclusion_threshold: u32 = if let Some(threshold) = upper_points_exclusion_threshold_y {
         threshold
     } else {
         0
     };
-    let edge_points = edges
+    edges
         .enumerate_pixels()
         .filter_map(|(x, y, color)| {
             if color[0] > 127 && y > y_exclusion_threshold {
@@ -247,8 +270,55 @@ fn detect_lines(
                 None
             }
         })
+        .collect()
+}
+fn detect_circle(
+    edge_points: Vec<Point2<f32>>,
+    camera_matrix: &CameraMatrix,
+    maximum_number_of_retries: usize,
+    ransac_iterations: usize,
+    ransac_maximum_distance: f32,
+) -> Option<(Circle, Vec<Point2<f32>>, Vec<Point2<f32>>)> {
+    let radius_variance = 0.1; // 10cm
+    let centre_distance_penalty_threshold = 10.0; // field length
+    let circle_fitting_model = CircleFittingModel {
+        candidate_circle: Circle {
+            center: point![2.0, 0.0], // relative to robot
+            radius: 0.75,
+        }
+        .into(),
+        centre_distance_penalty_threshold,
+    };
+    let edge_points_in_ground = edge_points
+        .iter()
+        .filter_map(|pixel_coordinates| {
+            let point = camera_matrix.pixel_to_ground(*pixel_coordinates);
+            point.ok()
+        })
         .collect();
+    let mut ransac = RansacCircleWithRadius::new(circle_fitting_model, edge_points_in_ground);
 
+    for _ in 0..maximum_number_of_retries {
+        let result = ransac.next_candidate(ransac_iterations, radius_variance);
+        if let Some(circle) = result.output {
+            let used_points_px = result
+                .used_points
+                .iter()
+                .map(|point| camera_matrix.ground_to_pixel(*point).expect("this transformation *must* succeed as the ground point comes from an existing pixel")).collect();
+            return Some((circle.into(), result.used_points, used_points_px));
+        }
+    }
+    None
+}
+
+fn detect_lines(
+    edge_points: Vec<Point2<f32>>,
+    maximum_number_of_lines: usize,
+    ransac_iterations: usize,
+    ransac_maximum_distance: f32,
+    ransac_maximum_gap: f32,
+    use_clustered_ransac: bool,
+) -> Option<Vec<Line2>> {
     let mut lines = vec![];
 
     if use_clustered_ransac {

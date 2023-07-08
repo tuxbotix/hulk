@@ -4,7 +4,8 @@ use calibration::lines::GoalBoxCalibrationLines;
 use color_eyre::Result;
 use communication::client::{Cycler, CyclerOutput};
 use eframe::epaint::{Color32, Stroke};
-use types::Line2;
+use nalgebra::Point2;
+use types::{Circle, Line2};
 
 use crate::{
     panels::image::overlay::Overlay, twix_painter::TwixPainter, value_buffer::ValueBuffer,
@@ -13,6 +14,7 @@ use crate::{
 pub struct CalibrationLineDetection {
     calibration_line_candidates: ValueBuffer,
     filtered_calibration_lines: ValueBuffer,
+    circle_used_points: ValueBuffer,
 }
 
 impl Overlay for CalibrationLineDetection {
@@ -29,6 +31,12 @@ impl Overlay for CalibrationLineDetection {
             filtered_calibration_lines: nao.subscribe_output(
                 CyclerOutput::from_str(&format!(
                     "{selected_cycler}.main.calibration_line_detection"
+                ))
+                .unwrap(),
+            ),
+            circle_used_points: nao.subscribe_output(
+                CyclerOutput::from_str(&format!(
+                    "{selected_cycler}.additional.calibration_line_detection.circle_used_points"
                 ))
                 .unwrap(),
             ),
@@ -55,35 +63,34 @@ impl Overlay for CalibrationLineDetection {
             // }
         }
 
-        let filtered_calibration_lines: Option<GoalBoxCalibrationLines> =
-            self.filtered_calibration_lines.require_latest()?;
+        // let filtered_calibration_lines: Option<GoalBoxCalibrationLines> =
+        //     self.filtered_calibration_lines.require_latest()?;
 
-        if let Some(filtered_calibration_lines) = filtered_calibration_lines {
-            let connecting_line = &filtered_calibration_lines.connecting_line;
-            let goal_box_line = &filtered_calibration_lines.goal_box_line;
-            let border_line = &filtered_calibration_lines.border_line;
+        // if let Some(filtered_calibration_lines) = filtered_calibration_lines {
+        //     let connecting_line = &filtered_calibration_lines.connecting_line;
+        //     let goal_box_line = &filtered_calibration_lines.goal_box_line;
+        //     let border_line = &filtered_calibration_lines.border_line;
 
-            for line in [connecting_line, goal_box_line, border_line] {
-                painter.line_segment(line.0, line.1, Stroke::new(3.0, Color32::GREEN));
-            }
+        //     for line in [connecting_line, goal_box_line, border_line] {
+        //         painter.line_segment(line.0, line.1, Stroke::new(3.0, Color32::GREEN));
+        //     }
+        // }
+
+        let used_points: Vec<Point2<f32>> = self.circle_used_points.require_latest()?;
+
+        // painter.circle_stroke(
+        //     circle.center,
+        //     circle.radius,
+        //     Stroke {
+        //         width: 3.0,
+        //         color: Color32::YELLOW,
+        //     },
+        // );
+        println!("ued points:{:?}", used_points.len());
+        for circle_point in used_points {
+            painter.circle_stroke(circle_point, 2.0, Stroke::new(1.0, Color32::YELLOW));
         }
 
-        // let lines_in_image: ImageLines = self.calibration_line_candidates.require_latest()?;
-        // for point in lines_in_image.points {
-        //     painter.circle_stroke(point, 3.0, Stroke::new(1.0, Color32::RED))
-        // }
-        // for (line, reason) in lines_in_image.discarded_lines {
-        //     let color = match reason {
-        //         types::LineDiscardReason::TooFewPoints => Color32::YELLOW,
-        //         types::LineDiscardReason::LineTooShort => Color32::GRAY,
-        //         types::LineDiscardReason::LineTooLong => Color32::BROWN,
-        //         types::LineDiscardReason::TooFarAway => Color32::BLACK,
-        //     };
-        //     painter.line_segment(line.0, line.1, Stroke::new(3.0, color));
-        // }
-        // for line in lines_in_image.lines {
-        //     painter.line_segment(line.0, line.1, Stroke::new(3.0, Color32::BLUE));
-        // }
         Ok(())
     }
 }

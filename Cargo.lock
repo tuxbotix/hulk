@@ -769,11 +769,15 @@ checksum = "38fcc2979eff34a4b84e1cf9a1e3da42a7d44b3b690a40cdcb23e3d556cfb2e5"
 name = "calibration"
 version = "0.1.0"
 dependencies = [
+ "approx",
  "image",
  "imageproc",
+ "itertools 0.11.0",
  "levenberg-marquardt",
  "nalgebra 0.32.2",
  "projection",
+ "rand 0.8.5",
+ "rand_distr 0.4.3",
  "serde",
  "serialize_hierarchy",
  "thiserror",

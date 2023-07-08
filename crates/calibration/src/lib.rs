@@ -4,6 +4,7 @@ use measurement::Measurement;
 use problem::CalibrationProblem;
 use types::FieldDimensions;
 
+pub mod circles;
 pub mod corrections;
 pub mod jacobian;
 pub mod lines;

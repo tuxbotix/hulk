@@ -925,6 +925,9 @@
     "initial_lookaround_duration": {
       "nanos": 0,
       "secs": 5
+    },
+    "jump": {
+      "testing_mode_without_jumping": false
     }
   },
   "game_state_filter": {

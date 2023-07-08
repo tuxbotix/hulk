@@ -74,7 +74,7 @@ fn motion_type_from_command(
     enable_energy_saving_stand: bool,
 ) -> MotionType {
     match command {
-        MotionCommand::ArmsUpSquat => MotionType::ArmsUpSquat,
+        MotionCommand::ArmsUpSquat { .. } => MotionType::ArmsUpSquat,
         MotionCommand::FallProtection { .. } => MotionType::FallProtection,
         MotionCommand::Jump { direction } => match direction {
             JumpDirection::Left => MotionType::JumpLeft,

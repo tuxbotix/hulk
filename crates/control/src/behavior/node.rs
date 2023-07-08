@@ -52,6 +52,7 @@ pub struct CycleContext {
     pub maximum_step_size: Parameter<Step, "step_planner.max_step_size">,
     pub striker_set_position:
         Parameter<Vector2<f32>, "behavior.role_positions.striker_set_position">,
+    pub testing_mode_without_jumping: Parameter<bool, "jump.testing_mode_without_jumping">,
 }
 
 #[context]
@@ -209,7 +210,9 @@ impl Behavior {
                         &context.parameters.dribbling,
                         context.dribble_path.cloned(),
                     ),
-                    Action::Jump => jump::execute(world_state),
+                    Action::Jump => {
+                        jump::execute(world_state, *context.testing_mode_without_jumping)
+                    }
                     Action::PrepareJump => prepare_jump::execute(world_state),
                     Action::Search => search::execute(
                         world_state,

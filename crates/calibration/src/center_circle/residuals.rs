@@ -1,8 +1,7 @@
 use coordinate_systems::{Ground, Pixel};
-use linear_algebra::{distance_squared, point, vector, Point2, Vector2};
+use linear_algebra::{vector, Point2, Vector2};
 use projection::{
-    camera_matrix::CameraMatrix, camera_projection::InverseCameraProjection,
-    Error as ProjectionError, Projection,
+    camera_projection::InverseCameraProjection, Error as ProjectionError, Projection,
 };
 
 use types::field_dimensions::FieldDimensions;
@@ -12,8 +11,6 @@ use crate::{
     corrections::{get_corrected_camera_matrix, Corrections},
     residuals::CalculateResiduals,
 };
-
-use super::fine_tuner::ellifit;
 
 pub struct CenterCircleResiduals {
     radial_residuals: Vec<f32>,
@@ -36,9 +33,9 @@ impl CalculateResiduals for CenterCircleResiduals {
 
         let min_y_point = measurement.circle_and_points.bounding_box.min;
         let max_y_point = measurement.circle_and_points.bounding_box.max;
-        if !corrected
+        if corrected
             .horizon
-            .is_none_or(|horizon| horizon.is_above_with_margin(min_y_point, 5.0))
+            .is_some_and(|horizon| horizon.is_above_with_margin(min_y_point, 5.0))
         {
             return Err(ProjectionError::NotOnProjectionPlane);
         };
@@ -71,7 +68,7 @@ impl CalculateResiduals for CenterCircleResiduals {
 }
 
 #[inline(always)]
-fn average_circle_residual<'a>(
+fn average_circle_residual(
     projected_point: Point2<Ground>,
     center: Point2<Ground>,
     radius: f32,

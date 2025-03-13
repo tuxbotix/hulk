@@ -5,7 +5,7 @@ use types::field_dimensions::FieldDimensions;
 
 use corrections::Corrections;
 use problem::CalibrationProblem;
-use residuals::{calculate_residuals_from_parameters, CalculateResiduals};
+use residuals::CalculateResiduals;
 
 pub mod center_circle;
 pub mod corrections;

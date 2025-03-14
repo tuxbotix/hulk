@@ -35,7 +35,7 @@ impl CalculateResiduals for CenterCircleResiduals {
         let max_y_point = measurement.circle_and_points.bounding_box.max;
         if corrected
             .horizon
-            .is_some_and(|horizon| horizon.is_above_with_margin(min_y_point, 5.0))
+            .is_some_and(|horizon| !horizon.is_above_with_margin(min_y_point, 5.0))
         {
             return Err(ProjectionError::NotOnProjectionPlane);
         };
@@ -67,7 +67,7 @@ impl CalculateResiduals for CenterCircleResiduals {
     }
 }
 
-#[inline(always)]
+#[inline]
 fn average_circle_residual(
     projected_point: Point2<Ground>,
     center: Point2<Ground>,
@@ -78,7 +78,7 @@ fn average_circle_residual(
 }
 
 /// Interpolate weight based on the y coordinate of pixel.
-#[inline(always)]
+#[inline]
 fn interpolate(pixel_y: f32, pixel_y_min: f32, pixel_y_range: f32, weight_max: f32) -> f32 {
     1.0 + (weight_max / pixel_y_range) * (pixel_y - pixel_y_min)
 }
@@ -128,16 +128,3 @@ impl From<CenterCircleResiduals> for Vec<f32> {
         residuals.radial_residuals
     }
 }
-
-// #[cfg(test)]
-// mod tests {
-//     #[test]
-//     fn test() {
-
-//         let radial_direction_in_ground = corrected.pixel_to_ground(*point).ok()?.coords();
-//         radial_direction_in_ground.normalize();
-
-//         let circle_point =
-//             (inner_radius * radial_direction_in_ground.inner + projected_center.coords().inner);
-//     }
-// }

@@ -34,7 +34,8 @@ impl CalculateResiduals for CenterCircleResiduals {
         );
 
         let projected_center = corrected.pixel_to_ground(measurement.circle_and_points.center)?;
-        let radius = field_dimensions.center_circle_diameter / 2.0;
+        let radius =
+            (field_dimensions.center_circle_diameter / 2.0) + parameters.radius_compensation;
 
         let min_y_point = measurement.circle_and_points.bounding_box.min;
         let max_y_point = measurement.circle_and_points.bounding_box.max;
@@ -62,8 +63,9 @@ impl CalculateResiduals for CenterCircleResiduals {
                 .map(|&point| {
                     let projected = pixel_to_ground.back_project_unchecked(point).xy();
                     let residual = average_circle_residual(projected, projected_center, radius);
-                    let weight = interpolate(point.y(), min_y, pixel_y_range, max_weight);
-                    residual * weight
+                    // let weight = interpolate(point.y(), min_y, pixel_y_range, max_weight);
+                    // residual * weight
+                    residual
                 })
                 .collect(),
         };

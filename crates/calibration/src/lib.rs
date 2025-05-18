@@ -1,5 +1,6 @@
 use itertools::Itertools;
 use levenberg_marquardt::LevenbergMarquardt;
+use std::fmt::Debug;
 
 use types::field_dimensions::FieldDimensions;
 
@@ -22,7 +23,7 @@ pub fn solve<MeasurementResidualsType, const PARAMETER_COUNT: usize>(
 where
     MeasurementResidualsType: CalculateResiduals,
     MeasurementResidualsType::Measurement: Clone,
-    MeasurementResidualsType::Corrections: Copy + CorrectionsTrait<PARAMETER_COUNT>,
+    MeasurementResidualsType::Corrections: Copy + Debug + CorrectionsTrait<PARAMETER_COUNT>,
     Vec<f32>: From<MeasurementResidualsType>,
 {
     let problem = CalibrationProblem::<MeasurementResidualsType, PARAMETER_COUNT>::new(
@@ -34,7 +35,10 @@ where
     let (result, report) = LevenbergMarquardt::new().minimize(problem);
     println!("Report: {report:?}");
 
-    let corrections = result.get_corrections();
+    let full_corrections = result.get_all_corrections();
+    println!("full_corrections: {full_corrections:#?}");
+
+    let corrections = full_corrections.base_corrections();
 
     let euler_top = corrections.correction_in_camera_top.inner.euler_angles();
     let euler_bottom = corrections.correction_in_camera_bottom.inner.euler_angles();

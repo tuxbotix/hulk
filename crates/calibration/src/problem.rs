@@ -43,6 +43,10 @@ where
     pub fn get_corrections(&self) -> Corrections {
         self.parameters.base_corrections()
     }
+
+    pub fn get_all_corrections(&self) -> MeasurementResidualsType::Corrections {
+        self.parameters.clone()
+    }
 }
 
 impl<MeasurementResidualsType, const PARAMETER_COUNT: usize>
@@ -81,3 +85,24 @@ where
         )
     }
 }
+
+// pub trait ProblemWrapper{
+
+//     type MeasurementResidualsType;
+//     // type PARAMETER_COUNT;
+//     type
+
+//     fn new_problem<MeasurementResidualsType>(
+//         initial_corrections: MeasurementResidualsType::Corrections,
+//         measurements: Vec<MeasurementResidualsType::Measurement>,
+//         field_dimensions: FieldDimensions,
+//     ){
+
+//             CalibrationProblem::<MeasurementResidualsType, PARAMETER_COUNT>::new(
+//                 initial_corrections,
+//                 measurements.clone(),
+//                 field_dimensions,
+//             )
+//         }
+
+// }

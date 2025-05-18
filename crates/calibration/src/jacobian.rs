@@ -11,7 +11,7 @@ pub type JacobianStorage<const PARAMETER_COUNT: usize> = Owned<f32, Dyn, Const<P
 pub type Jacobian<const PARAMETER_COUNT: usize> =
     Matrix<f32, Dyn, Const<PARAMETER_COUNT>, JacobianStorage<PARAMETER_COUNT>>;
 
-const EPSILON: f32 = 0.000001;
+const EPSILON: f32 = f32::EPSILON;
 
 pub fn calculate_jacobian_from_parameters<MeasurementResidualsType, const PARAMETER_COUNT: usize>(
     parameters: &MeasurementResidualsType::Corrections,

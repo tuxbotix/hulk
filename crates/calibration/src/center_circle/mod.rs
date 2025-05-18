@@ -13,7 +13,10 @@ mod tests {
     use projection::{camera_matrix::CameraMatrix, Projection};
     use types::{camera_position::CameraPosition, field_dimensions::FieldDimensions};
 
-    use crate::solve;
+    use crate::{
+        center_circle::extended_corrections::ExtendedCorrections, residuals::CalculateResiduals,
+        solve,
+    };
 
     use super::{
         circle_points::CenterCirclePoints, extended_corrections::EXTENDED_AMOUNT_OF_PARAMETERS,
@@ -94,6 +97,7 @@ mod tests {
                 top_distortion_angles[0],
                 top_distortion_angles[1],
                 top_distortion_angles[2],
+                // 0.0, 0.0, 0.0,
             ),
         );
 
@@ -180,19 +184,25 @@ mod tests {
             field_dims,
         );
 
-        // let center_circle_residuals: Vec<f32> =
-        //     CenterCircleResiduals::calculate_from(&corrections, &measurements[0], &field_dims)
-        //         .unwrap()
-        //         .into();
+        let center_circle_residuals: Vec<f32> = CenterCircleResiduals::calculate_from(
+            &ExtendedCorrections {
+                primary_corrections: corrections,
+                radius_compensation: 0.0,
+            },
+            &measurements[0],
+            &field_dims,
+        )
+        .unwrap()
+        .into();
 
-        // let average_norm = nalgebra::DVectorView::from_slice(
-        //     &center_circle_residuals,
-        //     center_circle_residuals.len(),
-        // )
-        // .norm_squared()
-        //     / 2.0;
+        let average_norm = nalgebra::DVectorView::from_slice(
+            &center_circle_residuals,
+            center_circle_residuals.len(),
+        )
+        .norm_squared()
+            / 2.0;
 
-        // assert!(average_norm < 4e-6, "objective_func: {average_norm}");
-        // assert!(false);
+        assert!(average_norm < 4e-6, "objective_func: {average_norm}");
+        assert!(false);
     }
 }

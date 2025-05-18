@@ -7,10 +7,11 @@ use projection::{
 use types::field_dimensions::FieldDimensions;
 
 use crate::{
-    center_circle::measurement::Measurement,
-    corrections::{get_corrected_camera_matrix, Corrections},
+    center_circle::measurement::Measurement, corrections::get_corrected_camera_matrix,
     residuals::CalculateResiduals,
 };
+
+use super::extended_corrections::ExtendedCorrections;
 
 pub struct CenterCircleResiduals {
     radial_residuals: Vec<f32>,
@@ -19,14 +20,18 @@ pub struct CenterCircleResiduals {
 impl CalculateResiduals for CenterCircleResiduals {
     type Error = ProjectionError;
     type Measurement = Measurement;
+    type Corrections = ExtendedCorrections;
 
     fn calculate_from(
-        parameters: &Corrections,
-        measurement: &Measurement,
+        parameters: &Self::Corrections,
+        measurement: &Self::Measurement,
         field_dimensions: &FieldDimensions,
     ) -> Result<Self, Self::Error> {
-        let corrected =
-            get_corrected_camera_matrix(&measurement.matrix, measurement.position, parameters);
+        let corrected = get_corrected_camera_matrix(
+            &measurement.matrix,
+            measurement.position,
+            &parameters.primary_corrections,
+        );
 
         let projected_center = corrected.pixel_to_ground(measurement.circle_and_points.center)?;
         let radius = field_dimensions.center_circle_diameter / 2.0;

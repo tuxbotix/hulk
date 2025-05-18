@@ -19,6 +19,7 @@ pub struct GoalBoxResiduals {
 impl CalculateResiduals for GoalBoxResiduals {
     type Error = ResidualsError;
     type Measurement = Measurement;
+    type Corrections = Corrections;
 
     fn calculate_from(
         parameters: &Corrections,

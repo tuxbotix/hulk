@@ -7,9 +7,7 @@ use types::camera_position::CameraPosition;
 
 use super::circle_points::CenterCirclePoints;
 
-#[derive(
-    Clone, Debug, Default, Serialize, Deserialize, PathSerialize, PathIntrospect, PathDeserialize,
-)]
+#[derive(Clone, Debug, Serialize, Deserialize, PathSerialize, PathIntrospect, PathDeserialize)]
 pub struct Measurement {
     pub position: CameraPosition,
     pub matrix: CameraMatrix,

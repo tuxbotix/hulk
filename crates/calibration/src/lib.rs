@@ -3,7 +3,7 @@ use levenberg_marquardt::LevenbergMarquardt;
 
 use types::field_dimensions::FieldDimensions;
 
-use corrections::Corrections;
+use corrections::{Corrections, CorrectionsTrait};
 use problem::CalibrationProblem;
 use residuals::CalculateResiduals;
 
@@ -14,17 +14,18 @@ pub mod jacobian;
 pub mod problem;
 pub mod residuals;
 
-pub fn solve<MeasurementResidualsType>(
-    initial_corrections: Corrections,
+pub fn solve<MeasurementResidualsType, const PARAMETER_COUNT: usize>(
+    initial_corrections: MeasurementResidualsType::Corrections,
     measurements: Vec<MeasurementResidualsType::Measurement>,
     field_dimensions: FieldDimensions,
 ) -> Corrections
 where
     MeasurementResidualsType: CalculateResiduals,
-    Vec<f32>: From<MeasurementResidualsType>,
     MeasurementResidualsType::Measurement: Clone,
+    MeasurementResidualsType::Corrections: Copy + CorrectionsTrait<PARAMETER_COUNT>,
+    Vec<f32>: From<MeasurementResidualsType>,
 {
-    let problem = CalibrationProblem::<MeasurementResidualsType>::new(
+    let problem = CalibrationProblem::<MeasurementResidualsType, PARAMETER_COUNT>::new(
         initial_corrections,
         measurements.clone(),
         field_dimensions,
@@ -33,18 +34,7 @@ where
     let (result, report) = LevenbergMarquardt::new().minimize(problem);
     println!("Report: {report:?}");
 
-    // let residuals = calculate_residuals_from_parameters(
-    //     &result.get_corrections(),
-    //     &measurements,
-    //     &field_dimensions,
-    // );
-    // if let Some(residuals) = residuals {
-    //     // println!("residuals: {residuals:?}");
-    //     _simple_hist(residuals.as_slice(), 20);
-    // }
-
     let corrections = result.get_corrections();
-    // println!("Corrections: {corrections:?}");
 
     let euler_top = corrections.correction_in_camera_top.inner.euler_angles();
     let euler_bottom = corrections.correction_in_camera_bottom.inner.euler_angles();

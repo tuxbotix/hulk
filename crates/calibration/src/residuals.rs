@@ -2,13 +2,11 @@ use nalgebra::{DVector, Dyn, Owned, Vector};
 
 use types::field_dimensions::FieldDimensions;
 
-use crate::corrections::Corrections;
-
 pub type ResidualVector = Vector<f32, Dyn, ResidualVectorStorage>;
 pub type ResidualVectorStorage = Owned<f32, Dyn>;
 
 pub fn calculate_residuals_from_parameters<ResidualsFromMeasurement>(
-    parameters: &Corrections,
+    parameters: &ResidualsFromMeasurement::Corrections,
     measurements: &[ResidualsFromMeasurement::Measurement],
     field_dimensions: &FieldDimensions,
 ) -> Option<ResidualVector>
@@ -31,9 +29,10 @@ where
 pub trait CalculateResiduals {
     type Error;
     type Measurement;
+    type Corrections;
 
     fn calculate_from(
-        parameters: &Corrections,
+        parameters: &Self::Corrections,
         measurement: &Self::Measurement,
         field_dimensions: &FieldDimensions,
     ) -> Result<Self, Self::Error>

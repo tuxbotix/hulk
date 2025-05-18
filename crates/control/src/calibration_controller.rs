@@ -4,7 +4,7 @@ use color_eyre::Result;
 use serde::{Deserialize, Serialize};
 
 use calibration::{
-    corrections::Corrections,
+    corrections::{Corrections, AMOUNT_OF_PARAMETERS},
     goal_box::{measurement::Measurement, residuals::GoalBoxResiduals},
     solve,
 };
@@ -231,7 +231,7 @@ impl CalibrationController {
 
     fn calibrate(&mut self, context: &CycleContext) -> CalibrationState {
         // TODO Handle not enough inner.measurements
-        let solved_result = solve::<GoalBoxResiduals>(
+        let solved_result = solve::<GoalBoxResiduals, AMOUNT_OF_PARAMETERS>(
             Corrections::default(),
             self.inner_states.measurements.clone(),
             *context.field_dimensions,

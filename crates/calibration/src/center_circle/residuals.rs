@@ -22,6 +22,18 @@ impl CalculateResiduals for CenterCircleResiduals {
     type Measurement = Measurement;
     type Corrections = ExtendedCorrections;
 
+    fn copy_to_slice(&self, out: &mut [f32]) -> Option<usize> {
+        if out.len() != self.radial_residuals.len() {
+            return None;
+        }
+        out.copy_from_slice(&self.radial_residuals);
+        Some(self.radial_residuals.len())
+    }
+
+    fn residual_count(_measurement: &Self::Measurement) -> usize {
+        _measurement.circle_and_points.points.len()
+    }
+
     fn calculate_from(
         parameters: &Self::Corrections,
         measurement: &Self::Measurement,

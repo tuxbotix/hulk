@@ -8,6 +8,7 @@ use crate::{
 
 use super::{lines::LinesError, measurement::Measurement};
 
+#[derive(Debug, Copy, Clone)]
 pub struct GoalBoxResiduals {
     pub border_to_connecting_angle: f32,
     pub connecting_to_goal_box_angle: f32,
@@ -60,6 +61,16 @@ impl CalculateResiduals for GoalBoxResiduals {
             distance_between_parallel_line_end_points: distance_between_parallel_line_end_points
                 - field_dimensions.goal_box_area_length,
         })
+    }
+
+    fn copy_to_slice(&self, out: &mut [f32]) -> Option<usize> {
+        let p: Vec<f32> = (*self).into();
+        out.copy_from_slice(&p);
+        Some(p.len())
+    }
+
+    fn residual_count(_measurement: &Self::Measurement) -> usize {
+        5
     }
 }
 

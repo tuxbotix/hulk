@@ -12,18 +12,26 @@ pub fn calculate_residuals_from_parameters<ResidualsFromMeasurement>(
 ) -> Option<ResidualVector>
 where
     ResidualsFromMeasurement: CalculateResiduals,
-    Vec<f32>: From<ResidualsFromMeasurement>,
 {
-    let mut residuals = Vec::new();
+    let count = measurements.iter().fold(0, |acc, measurement| {
+        acc + ResidualsFromMeasurement::residual_count(&measurement)
+    });
+
+    let mut residuals = DVector::zeros(count);
+    let mut residual_slice = residuals.as_mut_slice();
+    let mut offset = 0;
     for measurement in measurements {
-        let residuals_part: Vec<f32> =
+        let residuals_part =
             ResidualsFromMeasurement::calculate_from(parameters, measurement, field_dimensions)
-                .ok()?
-                .into();
-        residuals.extend(residuals_part);
+                .ok()?;
+        // assert!(residuals_part.len() == measurement.residual_count());
+
+        let residual_count = ResidualsFromMeasurement::residual_count(&measurement);
+        residuals_part.copy_to_slice(&mut residual_slice[offset..offset + residual_count])?;
+        offset += residual_count;
     }
 
-    Some(DVector::from_vec(residuals))
+    Some(residuals)
 }
 
 pub trait CalculateResiduals {
@@ -38,4 +46,17 @@ pub trait CalculateResiduals {
     ) -> Result<Self, Self::Error>
     where
         Self: Sized;
+
+    // fn calculate_from_in_place(
+    //     parameters: &Self::Corrections,
+    //     measurement: &Self::Measurement,
+    //     field_dimensions: &FieldDimensions,
+    //     residuals: &mut ResidualVector,
+    // ) -> Result<usize, Self::Error>
+    // where
+    //     Self: Sized;
+
+    fn copy_to_slice(&self, out: &mut [f32]) -> Option<usize>;
+
+    fn residual_count(measurement: &Self::Measurement) -> usize;
 }

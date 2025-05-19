@@ -20,12 +20,6 @@ pub struct CenterCirclePointsSeperated<Frame> {
     pub outer_points: Vec<Point2<Frame>>,
 }
 
-impl<Frame> CenterCirclePoints<Frame> {
-    pub fn total_points(&self) -> usize {
-        self.points.len()
-    }
-}
-
 #[derive(
     Clone, Debug, Default, Serialize, Deserialize, PathSerialize, PathIntrospect, PathDeserialize,
 )]

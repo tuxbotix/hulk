@@ -1,10 +1,10 @@
 use levenberg_marquardt::LeastSquaresProblem;
-use nalgebra::{Const, Dyn, Owned, SVector};
+use nalgebra::{allocator::Allocator,  DefaultAllocator, Dyn, Owned};
 
 use types::field_dimensions::FieldDimensions;
 
 use crate::{
-    corrections::{Corrections, CorrectionsTrait},
+    corrections::{Corrections, CorrectionsTrait, Parameters},
     jacobian::{calculate_jacobian_from_parameters, Jacobian, JacobianStorage},
     residuals::{
         calculate_residuals_from_parameters, CalculateResiduals, ResidualVector,
@@ -12,21 +12,24 @@ use crate::{
     },
 };
 
-pub struct CalibrationProblem<MeasurementResidualsType, const PARAMETER_COUNT: usize>
+pub struct CalibrationProblem<MeasurementResidualsType>
 where
     MeasurementResidualsType: CalculateResiduals,
-    MeasurementResidualsType::Corrections: CorrectionsTrait<PARAMETER_COUNT>,
+    MeasurementResidualsType::Corrections: CorrectionsTrait,
+    DefaultAllocator:
+        Allocator<<MeasurementResidualsType::Corrections as CorrectionsTrait>::ParameterCount>,
 {
     parameters: MeasurementResidualsType::Corrections,
     measurements: Vec<MeasurementResidualsType::Measurement>,
     field_dimensions: FieldDimensions,
 }
 
-impl<MeasurementResidualsType, const PARAMETER_COUNT: usize>
-    CalibrationProblem<MeasurementResidualsType, PARAMETER_COUNT>
+impl<MeasurementResidualsType> CalibrationProblem<MeasurementResidualsType>
 where
     MeasurementResidualsType: CalculateResiduals,
-    MeasurementResidualsType::Corrections: Copy + CorrectionsTrait<PARAMETER_COUNT>,
+    MeasurementResidualsType::Corrections: Copy + CorrectionsTrait,
+    DefaultAllocator:
+        Allocator<<MeasurementResidualsType::Corrections as CorrectionsTrait>::ParameterCount>,
 {
     pub fn new(
         initial_corrections: MeasurementResidualsType::Corrections,
@@ -49,24 +52,40 @@ where
     }
 }
 
-impl<MeasurementResidualsType, const PARAMETER_COUNT: usize>
-    LeastSquaresProblem<f32, Dyn, Const<PARAMETER_COUNT>>
-    for CalibrationProblem<MeasurementResidualsType, PARAMETER_COUNT>
+impl<MeasurementResidualsType>
+    LeastSquaresProblem<
+        f32,
+        Dyn,
+        <MeasurementResidualsType::Corrections as CorrectionsTrait>::ParameterCount,
+    > for CalibrationProblem<MeasurementResidualsType>
 where
     MeasurementResidualsType: CalculateResiduals,
     Vec<f32>: From<MeasurementResidualsType>,
-    MeasurementResidualsType::Corrections: CorrectionsTrait<PARAMETER_COUNT>,
+    MeasurementResidualsType::Corrections: CorrectionsTrait,
+    DefaultAllocator:
+        Allocator<<MeasurementResidualsType::Corrections as CorrectionsTrait>::ParameterCount>,
 {
     type ResidualStorage = ResidualVectorStorage;
-    type JacobianStorage = JacobianStorage<PARAMETER_COUNT>;
-    type ParameterStorage = Owned<f32, Const<PARAMETER_COUNT>>;
+    type JacobianStorage = JacobianStorage<
+        <MeasurementResidualsType::Corrections as CorrectionsTrait>::ParameterCount,
+    >;
+    type ParameterStorage =
+        Owned<f32, <MeasurementResidualsType::Corrections as CorrectionsTrait>::ParameterCount>;
 
-    fn set_params(&mut self, parameters: &SVector<f32, PARAMETER_COUNT>) {
-        self.parameters = MeasurementResidualsType::Corrections::from_nalgebra_vector(parameters);
+    fn set_params(
+        &mut self,
+        parameters: &Parameters<
+            <MeasurementResidualsType::Corrections as CorrectionsTrait>::ParameterCount,
+        >,
+    ) {
+        self.parameters = MeasurementResidualsType::Corrections::from_svector(parameters);
     }
 
-    fn params(&self) -> SVector<f32, PARAMETER_COUNT> {
-        self.parameters.to_nalgebra_vector()
+    fn params(
+        &self,
+    ) -> Parameters<<MeasurementResidualsType::Corrections as CorrectionsTrait>::ParameterCount>
+    {
+        self.parameters.to_svector()
     }
 
     fn residuals(&self) -> Option<ResidualVector> {
@@ -77,8 +96,11 @@ where
         )
     }
 
-    fn jacobian(&self) -> Option<Jacobian<PARAMETER_COUNT>> {
-        calculate_jacobian_from_parameters::<MeasurementResidualsType, PARAMETER_COUNT>(
+    fn jacobian(
+        &self,
+    ) -> Option<Jacobian<<MeasurementResidualsType::Corrections as CorrectionsTrait>::ParameterCount>>
+    {
+        calculate_jacobian_from_parameters::<MeasurementResidualsType>(
             &self.parameters,
             &self.measurements,
             &self.field_dimensions,

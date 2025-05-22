@@ -1,5 +1,8 @@
 use coordinate_systems::{Camera, Robot};
-use nalgebra::{vector, SVector, UnitQuaternion};
+use nalgebra::{
+    allocator::Allocator, vector, Const, DefaultAllocator, Dim, DimName, Matrix, Owned, SVector,
+    UnitQuaternion, U1,
+};
 use serde::{Deserialize, Serialize};
 
 use linear_algebra::{IntoTransform, Rotation3};
@@ -7,9 +10,18 @@ use path_serde::{PathDeserialize, PathIntrospect, PathSerialize};
 use projection::camera_matrix::CameraMatrix;
 use types::camera_position::CameraPosition;
 
-pub trait CorrectionsTrait<const PARAMETER_COUNT: usize> {
-    fn to_nalgebra_vector(&self) -> SVector<f32, PARAMETER_COUNT>;
-    fn from_nalgebra_vector(vector: &SVector<f32, PARAMETER_COUNT>) -> Self;
+pub type ParametersStorage<N> = Owned<f32, N, U1>;
+pub type Parameters<N> = Matrix<f32, N, U1, ParametersStorage<N>>;
+
+pub trait CorrectionsTrait
+where
+    Self::ParameterCount: Dim + DimName, // N must be a dimension and also have a compile-time name (e.g., U1, U2, ...)
+    DefaultAllocator: Allocator<Self::ParameterCount>,
+{
+    type ParameterCount: Dim + DimName;
+
+    fn to_svector(&self) -> Parameters<Self::ParameterCount>;
+    fn from_svector(vector: &Parameters<Self::ParameterCount>) -> Self;
 
     fn base_corrections(self) -> Corrections;
 }
@@ -33,8 +45,8 @@ pub struct Corrections {
     pub correction_in_camera_bottom: Rotation3<Camera, Camera, f32>,
 }
 
-impl CorrectionsTrait<AMOUNT_OF_PARAMETERS> for Corrections {
-    fn to_nalgebra_vector(&self) -> SVector<f32, AMOUNT_OF_PARAMETERS> {
+impl CorrectionsTrait for Corrections {
+    fn to_svector(&self) -> SVector<f32, AMOUNT_OF_PARAMETERS> {
         let (robot_roll, robot_pitch, robot_yaw) = self.correction_in_robot.inner.euler_angles();
         let (camera_top_roll, camera_top_pitch, camera_top_yaw) =
             self.correction_in_camera_top.inner.euler_angles();
@@ -53,7 +65,7 @@ impl CorrectionsTrait<AMOUNT_OF_PARAMETERS> for Corrections {
         ]
     }
 
-    fn from_nalgebra_vector(parameters: &SVector<f32, AMOUNT_OF_PARAMETERS>) -> Self {
+    fn from_svector(parameters: &SVector<f32, AMOUNT_OF_PARAMETERS>) -> Self {
         Self {
             // correction_in_robot: UnitQuaternion::from_euler_angles(
             //     parameters[0],
@@ -80,6 +92,8 @@ impl CorrectionsTrait<AMOUNT_OF_PARAMETERS> for Corrections {
     fn base_corrections(self) -> Corrections {
         self
     }
+
+    type ParameterCount = Const<AMOUNT_OF_PARAMETERS>;
 }
 
 impl From<&SVector<f32, AMOUNT_OF_PARAMETERS>> for Corrections {

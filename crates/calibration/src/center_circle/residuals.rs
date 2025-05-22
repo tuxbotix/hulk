@@ -7,8 +7,9 @@ use projection::{
 use types::field_dimensions::FieldDimensions;
 
 use crate::{
-    center_circle::measurement::Measurement, corrections::get_corrected_camera_matrix,
-    residuals::CalculateResiduals,
+    center_circle::measurement::Measurement,
+    corrections::get_corrected_camera_matrix,
+    residuals::{CalculateResiduals, ResidualVector},
 };
 
 use super::extended_corrections::ExtendedCorrections;
@@ -22,23 +23,15 @@ impl CalculateResiduals for CenterCircleResiduals {
     type Measurement = Measurement;
     type Corrections = ExtendedCorrections;
 
-    fn copy_to_slice(&self, out: &mut [f32]) -> Option<usize> {
-        if out.len() != self.radial_residuals.len() {
-            return None;
-        }
-        out.copy_from_slice(&self.radial_residuals);
-        Some(self.radial_residuals.len())
-    }
-
     fn residual_count(_measurement: &Self::Measurement) -> usize {
         _measurement.circle_and_points.points.len()
     }
 
-    fn calculate_from(
+    fn calculate_as_vector(
         parameters: &Self::Corrections,
         measurement: &Self::Measurement,
         field_dimensions: &FieldDimensions,
-    ) -> Result<Self, Self::Error> {
+    ) -> Result<Vec<f32>, Self::Error> {
         let corrected = get_corrected_camera_matrix(
             &measurement.matrix,
             measurement.position,
@@ -50,7 +43,7 @@ impl CalculateResiduals for CenterCircleResiduals {
             (field_dimensions.center_circle_diameter / 2.0) + parameters.radius_compensation;
 
         let min_y_point = measurement.circle_and_points.bounding_box.min;
-        let max_y_point = measurement.circle_and_points.bounding_box.max;
+        // let max_y_point = measurement.circle_and_points.bounding_box.max;
         if corrected
             .horizon
             .is_some_and(|horizon| !horizon.is_above_with_margin(min_y_point, 5.0))
@@ -58,31 +51,38 @@ impl CalculateResiduals for CenterCircleResiduals {
             return Err(ProjectionError::NotOnProjectionPlane);
         };
 
-        let pixel_y_range = max_y_point.y() - min_y_point.y();
+        // let pixel_y_range = max_y_point.y() - min_y_point.y();
         let pixel_to_ground = &corrected.pixel_to_ground;
 
         // we are skipping variance along x axis[pixel] for now.
         // min weight = 1.0
-        let max_weight =
-            max_weight_calculation_unchecked(&min_y_point, &max_y_point, pixel_to_ground).y();
-        let min_y = min_y_point.y();
+        // let max_weight =
+        //     max_weight_calculation_unchecked(&min_y_point, &max_y_point, pixel_to_ground).y();
+        // let min_y = min_y_point.y();
 
-        let residuals = CenterCircleResiduals {
-            radial_residuals: measurement
-                .circle_and_points
-                .points
-                .iter()
-                .map(|&point| {
-                    let projected = pixel_to_ground.back_project_unchecked(point).xy();
-                    let residual = average_circle_residual(projected, projected_center, radius);
-                    // let weight = interpolate(point.y(), min_y, pixel_y_range, max_weight);
-                    // residual * weight
-                    residual
-                })
-                .collect(),
-        };
+        Ok(measurement
+            .circle_and_points
+            .points
+            .iter()
+            .map(|&point| {
+                let projected = pixel_to_ground.back_project_unchecked(point).xy();
+                let residual = average_circle_residual(projected, projected_center, radius);
+                // let weight = interpolate(point.y(), min_y, pixel_y_range, max_weight);
+                // residual * weight
+                residual
+            })
+            .collect())
+    }
 
-        Ok(residuals)
+    fn calculate_from(
+        parameters: &Self::Corrections,
+        measurement: &Self::Measurement,
+        field_dimensions: &FieldDimensions,
+    ) -> Result<Self, Self::Error> {
+        let residuals = Self::calculate_as_vector(parameters, measurement, field_dimensions)?;
+        Ok(Self {
+            radial_residuals: residuals,
+        })
     }
 }
 
@@ -98,6 +98,7 @@ fn average_circle_residual(
 
 /// Interpolate weight based on the y coordinate of pixel.
 #[inline]
+#[allow(dead_code)]
 fn interpolate(pixel_y: f32, pixel_y_min: f32, pixel_y_range: f32, weight_max: f32) -> f32 {
     1.0 + (weight_max / pixel_y_range) * (pixel_y - pixel_y_min)
 }
@@ -105,6 +106,7 @@ fn interpolate(pixel_y: f32, pixel_y_min: f32, pixel_y_range: f32, weight_max: f
 /// Calculates minimum and maximum variations (kinda like covariance) at top and bottom of circle.
 /// This kind of calculation is needed as the pixel noise (+-0.5) has different variances in the ground plane after projection.
 /// Therefore it has to be compensated in the residual calculation to avoid biasing towards further away points
+#[allow(dead_code)]
 fn max_weight_calculation_unchecked(
     min_y_point: &Point2<Pixel>,
     max_y_point: &Point2<Pixel>,

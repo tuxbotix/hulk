@@ -1,12 +1,13 @@
 use itertools::Itertools;
 use levenberg_marquardt::LevenbergMarquardt;
+use nalgebra::{allocator::Allocator, DefaultAllocator};
+use residuals::CalculateResiduals;
 use std::fmt::Debug;
 
 use types::field_dimensions::FieldDimensions;
 
 use corrections::{Corrections, CorrectionsTrait};
 use problem::CalibrationProblem;
-use residuals::CalculateResiduals;
 
 pub mod center_circle;
 pub mod corrections;
@@ -15,7 +16,7 @@ pub mod jacobian;
 pub mod problem;
 pub mod residuals;
 
-pub fn solve<MeasurementResidualsType, const PARAMETER_COUNT: usize>(
+pub fn solve<MeasurementResidualsType>(
     initial_corrections: MeasurementResidualsType::Corrections,
     measurements: Vec<MeasurementResidualsType::Measurement>,
     field_dimensions: FieldDimensions,
@@ -23,10 +24,12 @@ pub fn solve<MeasurementResidualsType, const PARAMETER_COUNT: usize>(
 where
     MeasurementResidualsType: CalculateResiduals,
     MeasurementResidualsType::Measurement: Clone,
-    MeasurementResidualsType::Corrections: Copy + Debug + CorrectionsTrait<PARAMETER_COUNT>,
+    MeasurementResidualsType::Corrections: Copy + Debug + CorrectionsTrait,
     Vec<f32>: From<MeasurementResidualsType>,
+    DefaultAllocator:
+        Allocator<<MeasurementResidualsType::Corrections as CorrectionsTrait>::ParameterCount>,
 {
-    let problem = CalibrationProblem::<MeasurementResidualsType, PARAMETER_COUNT>::new(
+    let problem = CalibrationProblem::<MeasurementResidualsType>::new(
         initial_corrections,
         measurements.clone(),
         field_dimensions,

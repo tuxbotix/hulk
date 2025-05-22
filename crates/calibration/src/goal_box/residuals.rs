@@ -63,14 +63,20 @@ impl CalculateResiduals for GoalBoxResiduals {
         })
     }
 
-    fn copy_to_slice(&self, out: &mut [f32]) -> Option<usize> {
-        let p: Vec<f32> = (*self).into();
-        out.copy_from_slice(&p);
-        Some(p.len())
-    }
-
     fn residual_count(_measurement: &Self::Measurement) -> usize {
         5
+    }
+
+    fn calculate_as_vector(
+        parameters: &Self::Corrections,
+        measurement: &Self::Measurement,
+        field_dimensions: &FieldDimensions,
+    ) -> Result<Vec<f32>, Self::Error>
+    where
+        Self: Sized,
+    {
+        let residuals = Self::calculate_from(parameters, measurement, field_dimensions)?;
+        Ok(residuals.into())
     }
 }
 

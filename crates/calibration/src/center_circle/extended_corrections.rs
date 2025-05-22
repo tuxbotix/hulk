@@ -1,4 +1,4 @@
-use nalgebra::SVector;
+use nalgebra::{Const, SVector};
 
 use crate::corrections::{Corrections, CorrectionsTrait, AMOUNT_OF_PARAMETERS};
 
@@ -10,18 +10,18 @@ pub struct ExtendedCorrections {
     pub radius_compensation: f32,
 }
 
-impl CorrectionsTrait<EXTENDED_AMOUNT_OF_PARAMETERS> for ExtendedCorrections {
-    fn to_nalgebra_vector(&self) -> SVector<f32, EXTENDED_AMOUNT_OF_PARAMETERS> {
+impl CorrectionsTrait for ExtendedCorrections {
+    fn to_svector(&self) -> SVector<f32, EXTENDED_AMOUNT_OF_PARAMETERS> {
         let mut vector = SVector::<f32, EXTENDED_AMOUNT_OF_PARAMETERS>::zeros();
         vector
             .fixed_view_mut::<AMOUNT_OF_PARAMETERS, 1>(0, 0)
-            .copy_from(&self.primary_corrections.to_nalgebra_vector());
+            .copy_from(&self.primary_corrections.to_svector());
         vector[EXTENDED_AMOUNT_OF_PARAMETERS - 1] = self.radius_compensation;
         vector
     }
-    fn from_nalgebra_vector(vector: &SVector<f32, EXTENDED_AMOUNT_OF_PARAMETERS>) -> Self {
+    fn from_svector(vector: &SVector<f32, EXTENDED_AMOUNT_OF_PARAMETERS>) -> Self {
         Self {
-            primary_corrections: Corrections::from_nalgebra_vector(
+            primary_corrections: Corrections::from_svector(
                 &vector
                     .fixed_view::<AMOUNT_OF_PARAMETERS, 1>(0, 0)
                     .clone_owned(),
@@ -33,4 +33,6 @@ impl CorrectionsTrait<EXTENDED_AMOUNT_OF_PARAMETERS> for ExtendedCorrections {
     fn base_corrections(self) -> Corrections {
         self.primary_corrections.base_corrections()
     }
+
+    type ParameterCount = Const<EXTENDED_AMOUNT_OF_PARAMETERS>;
 }

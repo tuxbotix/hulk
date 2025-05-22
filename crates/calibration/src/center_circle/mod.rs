@@ -19,7 +19,7 @@ mod tests {
     };
 
     use super::{
-        circle_points::CenterCirclePoints, extended_corrections::EXTENDED_AMOUNT_OF_PARAMETERS,
+        circle_points::CenterCirclePoints, 
         measurement::Measurement, residuals::CenterCircleResiduals,
     };
 
@@ -80,7 +80,7 @@ mod tests {
 
     #[test]
     fn calibrate_with_circle() {
-        let robot_distortion_angles = [1.5f32, -2.0f32, 1.0f32].map(|a| a.to_radians());
+        // let robot_distortion_angles = [1.5f32, -2.0f32, 1.0f32].map(|a| a.to_radians());
         let top_distortion_angles = [-4.0f32, 2.5f32, 1.2f32].map(|a| a.to_radians());
 
         let matrix = get_matrix();
@@ -178,11 +178,8 @@ mod tests {
             },
         }];
 
-        let corrections = solve::<CenterCircleResiduals, EXTENDED_AMOUNT_OF_PARAMETERS>(
-            Default::default(),
-            measurements.clone(),
-            field_dims,
-        );
+        let corrections =
+            solve::<CenterCircleResiduals>(Default::default(), measurements.clone(), field_dims);
 
         let center_circle_residuals: Vec<f32> = CenterCircleResiduals::calculate_from(
             &ExtendedCorrections {

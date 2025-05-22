@@ -4,7 +4,7 @@ use color_eyre::Result;
 use serde::{Deserialize, Serialize};
 
 use calibration::{
-    corrections::{Corrections},
+    corrections::ExtrinsicCorrections,
     goal_box::{measurement::Measurement, residuals::GoalBoxResiduals},
     solve,
 };
@@ -23,7 +23,7 @@ use types::{
 #[derive(Deserialize, Serialize)]
 pub struct CalibrationController {
     inner_states: StateTracking,
-    corrections: Option<Corrections>,
+    corrections: Option<ExtrinsicCorrections>,
     look_at_list: Vec<(Point2<Ground>, CameraPosition)>,
 }
 
@@ -51,7 +51,7 @@ pub struct CycleContext {
 
     calibration_measurements: AdditionalOutput<Vec<Measurement>, "calibration_inner.measurements">,
     last_calibration_corrections:
-        AdditionalOutput<Option<Corrections>, "last_calibration_corrections">,
+        AdditionalOutput<Option<ExtrinsicCorrections>, "last_calibration_corrections">,
 }
 
 #[context]
@@ -232,7 +232,7 @@ impl CalibrationController {
     fn calibrate(&mut self, context: &CycleContext) -> CalibrationState {
         // TODO Handle not enough inner.measurements
         let solved_result = solve::<GoalBoxResiduals>(
-            Corrections::default(),
+            ExtrinsicCorrections::default(),
             self.inner_states.measurements.clone(),
             *context.field_dimensions,
         );

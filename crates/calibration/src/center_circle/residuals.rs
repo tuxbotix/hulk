@@ -7,9 +7,8 @@ use projection::{
 use types::field_dimensions::FieldDimensions;
 
 use crate::{
-    center_circle::measurement::Measurement,
-    corrections::get_corrected_camera_matrix,
-    residuals::{CalculateResiduals, ResidualVector},
+    center_circle::measurement::Measurement, corrections::get_corrected_camera_matrix,
+    residuals::CalculateResiduals,
 };
 
 use super::extended_corrections::ExtendedCorrections;

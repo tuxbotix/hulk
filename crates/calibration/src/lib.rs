@@ -6,7 +6,7 @@ use std::fmt::Debug;
 
 use types::field_dimensions::FieldDimensions;
 
-use corrections::{Corrections, CorrectionsTrait};
+use corrections::{CorrectionsTrait, ExtrinsicCorrections};
 use problem::CalibrationProblem;
 
 pub mod center_circle;
@@ -20,7 +20,7 @@ pub fn solve<MeasurementResidualsType>(
     initial_corrections: MeasurementResidualsType::Corrections,
     measurements: Vec<MeasurementResidualsType::Measurement>,
     field_dimensions: FieldDimensions,
-) -> Corrections
+) -> ExtrinsicCorrections
 where
     MeasurementResidualsType: CalculateResiduals,
     MeasurementResidualsType::Measurement: Clone,
@@ -41,7 +41,7 @@ where
     let full_corrections = result.get_all_corrections();
     println!("full_corrections: {full_corrections:#?}");
 
-    let corrections = full_corrections.base_corrections();
+    let corrections = full_corrections.extrinsic_corrections();
 
     let euler_top = corrections.correction_in_camera_top.inner.euler_angles();
     let euler_bottom = corrections.correction_in_camera_bottom.inner.euler_angles();

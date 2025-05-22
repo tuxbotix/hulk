@@ -19,8 +19,8 @@ mod tests {
     };
 
     use super::{
-        circle_points::CenterCirclePoints, 
-        measurement::Measurement, residuals::CenterCircleResiduals,
+        circle_points::CenterCirclePoints, measurement::Measurement,
+        residuals::CenterCircleResiduals,
     };
 
     fn get_matrix() -> CameraMatrix {

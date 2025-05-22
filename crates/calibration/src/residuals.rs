@@ -18,7 +18,7 @@ where
         Allocator<<ResidualsFromMeasurement::Corrections as CorrectionsTrait>::ParameterCount>,
 {
     let count = measurements.iter().fold(0, |acc, measurement| {
-        acc + ResidualsFromMeasurement::residual_count(&measurement)
+        acc + ResidualsFromMeasurement::residual_count(measurement)
     });
 
     let mut residuals = DVector::zeros(count);
@@ -31,7 +31,7 @@ where
             field_dimensions,
         )
         .ok()?;
-        let residual_count = ResidualsFromMeasurement::residual_count(&measurement);
+        let residual_count = ResidualsFromMeasurement::residual_count(measurement);
         residual_slice[offset..offset + residual_count].copy_from_slice(&residuals_part);
         offset += residual_count;
     }

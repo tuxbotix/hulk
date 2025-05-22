@@ -15,7 +15,7 @@ pub type Parameters<N> = Matrix<f32, N, U1, ParametersStorage<N>>;
 
 pub trait CorrectionsTrait
 where
-    Self::ParameterCount: Dim + DimName, // N must be a dimension and also have a compile-time name (e.g., U1, U2, ...)
+    Self::ParameterCount: Dim + DimName,
     DefaultAllocator: Allocator<Self::ParameterCount>,
 {
     type ParameterCount: Dim + DimName;
@@ -23,10 +23,10 @@ where
     fn to_svector(&self) -> Parameters<Self::ParameterCount>;
     fn from_svector(vector: &Parameters<Self::ParameterCount>) -> Self;
 
-    fn base_corrections(self) -> Corrections;
+    fn extrinsic_corrections(self) -> ExtrinsicCorrections;
 }
 
-pub const AMOUNT_OF_PARAMETERS: usize = 9;
+pub const AMOUNT_OF_EXTRINSIC_PARAMETERS: usize = 9;
 
 #[derive(
     Clone,
@@ -39,14 +39,14 @@ pub const AMOUNT_OF_PARAMETERS: usize = 9;
     PathSerialize,
     PathIntrospect,
 )]
-pub struct Corrections {
+pub struct ExtrinsicCorrections {
     pub correction_in_robot: Rotation3<Robot, Robot, f32>,
     pub correction_in_camera_top: Rotation3<Camera, Camera, f32>,
     pub correction_in_camera_bottom: Rotation3<Camera, Camera, f32>,
 }
 
-impl CorrectionsTrait for Corrections {
-    fn to_svector(&self) -> SVector<f32, AMOUNT_OF_PARAMETERS> {
+impl CorrectionsTrait for ExtrinsicCorrections {
+    fn to_svector(&self) -> SVector<f32, AMOUNT_OF_EXTRINSIC_PARAMETERS> {
         let (robot_roll, robot_pitch, robot_yaw) = self.correction_in_robot.inner.euler_angles();
         let (camera_top_roll, camera_top_pitch, camera_top_yaw) =
             self.correction_in_camera_top.inner.euler_angles();
@@ -65,7 +65,7 @@ impl CorrectionsTrait for Corrections {
         ]
     }
 
-    fn from_svector(parameters: &SVector<f32, AMOUNT_OF_PARAMETERS>) -> Self {
+    fn from_svector(parameters: &SVector<f32, AMOUNT_OF_EXTRINSIC_PARAMETERS>) -> Self {
         Self {
             // correction_in_robot: UnitQuaternion::from_euler_angles(
             //     parameters[0],
@@ -89,65 +89,17 @@ impl CorrectionsTrait for Corrections {
         }
     }
 
-    fn base_corrections(self) -> Corrections {
+    fn extrinsic_corrections(self) -> ExtrinsicCorrections {
         self
     }
 
-    type ParameterCount = Const<AMOUNT_OF_PARAMETERS>;
-}
-
-impl From<&SVector<f32, AMOUNT_OF_PARAMETERS>> for Corrections {
-    fn from(parameters: &SVector<f32, AMOUNT_OF_PARAMETERS>) -> Self {
-        Self {
-            // correction_in_robot: UnitQuaternion::from_euler_angles(
-            //     parameters[0],
-            //     parameters[1],
-            //     parameters[2],
-            // )
-            // .framed_transform(),
-            correction_in_robot: UnitQuaternion::identity().framed_transform(),
-            correction_in_camera_top: UnitQuaternion::from_euler_angles(
-                parameters[3],
-                parameters[4],
-                parameters[5],
-            )
-            .framed_transform(),
-            correction_in_camera_bottom: UnitQuaternion::from_euler_angles(
-                parameters[6],
-                parameters[7],
-                parameters[8],
-            )
-            .framed_transform(),
-        }
-    }
-}
-
-impl From<&Corrections> for SVector<f32, AMOUNT_OF_PARAMETERS> {
-    fn from(parameters: &Corrections) -> Self {
-        let (robot_roll, robot_pitch, robot_yaw) =
-            parameters.correction_in_robot.inner.euler_angles();
-        let (camera_top_roll, camera_top_pitch, camera_top_yaw) =
-            parameters.correction_in_camera_top.inner.euler_angles();
-        let (camera_bottom_roll, camera_bottom_pitch, camera_bottom_yaw) =
-            parameters.correction_in_camera_bottom.inner.euler_angles();
-        vector![
-            robot_roll,
-            robot_pitch,
-            robot_yaw,
-            camera_top_roll,
-            camera_top_pitch,
-            camera_top_yaw,
-            camera_bottom_roll,
-            camera_bottom_pitch,
-            camera_bottom_yaw
-        ]
-    }
+    type ParameterCount = Const<AMOUNT_OF_EXTRINSIC_PARAMETERS>;
 }
 
 pub(crate) fn get_corrected_camera_matrix(
     input_matrix: &CameraMatrix,
     position: CameraPosition,
-    parameters: &Corrections,
+    parameters: &ExtrinsicCorrections,
 ) -> CameraMatrix {
     input_matrix.to_corrected(
         parameters.correction_in_robot,

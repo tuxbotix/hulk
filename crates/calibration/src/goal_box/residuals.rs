@@ -2,7 +2,7 @@ use geometry::Distance;
 use types::field_dimensions::FieldDimensions;
 
 use crate::{
-    corrections::{get_corrected_camera_matrix, Corrections},
+    corrections::{get_corrected_camera_matrix, ExtrinsicCorrections},
     residuals::CalculateResiduals,
 };
 
@@ -20,10 +20,10 @@ pub struct GoalBoxResiduals {
 impl CalculateResiduals for GoalBoxResiduals {
     type Error = ResidualsError;
     type Measurement = Measurement;
-    type Corrections = Corrections;
+    type Corrections = ExtrinsicCorrections;
 
     fn calculate_from(
-        parameters: &Corrections,
+        parameters: &ExtrinsicCorrections,
         measurement: &Measurement,
         field_dimensions: &FieldDimensions,
     ) -> Result<Self, Self::Error> {

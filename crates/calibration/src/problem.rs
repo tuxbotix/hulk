@@ -1,11 +1,11 @@
 use levenberg_marquardt::LeastSquaresProblem;
-use nalgebra::{allocator::Allocator,  DefaultAllocator, Dyn, Owned};
+use nalgebra::{allocator::Allocator, DefaultAllocator, Dyn, Owned};
 
 use types::field_dimensions::FieldDimensions;
 
 use crate::{
-    corrections::{Corrections, CorrectionsTrait, Parameters},
-    jacobian::{calculate_jacobian_from_parameters, Jacobian, JacobianStorage},
+    corrections::{CorrectionsTrait, ExtrinsicCorrections, Parameters},
+    jacobian::{jacobian_central_difference, Jacobian, JacobianStorage},
     residuals::{
         calculate_residuals_from_parameters, CalculateResiduals, ResidualVector,
         ResidualVectorStorage,
@@ -43,12 +43,12 @@ where
         }
     }
 
-    pub fn get_corrections(&self) -> Corrections {
-        self.parameters.base_corrections()
+    pub fn get_corrections(&self) -> ExtrinsicCorrections {
+        self.parameters.extrinsic_corrections()
     }
 
     pub fn get_all_corrections(&self) -> MeasurementResidualsType::Corrections {
-        self.parameters.clone()
+        self.parameters
     }
 }
 
@@ -100,7 +100,7 @@ where
         &self,
     ) -> Option<Jacobian<<MeasurementResidualsType::Corrections as CorrectionsTrait>::ParameterCount>>
     {
-        calculate_jacobian_from_parameters::<MeasurementResidualsType>(
+        jacobian_central_difference::<MeasurementResidualsType>(
             &self.parameters,
             &self.measurements,
             &self.field_dimensions,

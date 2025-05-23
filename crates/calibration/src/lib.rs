@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use levenberg_marquardt::LevenbergMarquardt;
 use nalgebra::{allocator::Allocator, DefaultAllocator};
-use residuals::CalculateResiduals;
+use residuals::CalculateDifferentiableResiduals;
 use std::fmt::Debug;
 
 use types::field_dimensions::FieldDimensions;
@@ -22,7 +22,7 @@ pub fn solve<MeasurementResidualsType>(
     field_dimensions: FieldDimensions,
 ) -> ExtrinsicCorrections
 where
-    MeasurementResidualsType: CalculateResiduals,
+    MeasurementResidualsType: CalculateDifferentiableResiduals,
     MeasurementResidualsType::Measurement: Clone,
     MeasurementResidualsType::Corrections: Copy + Debug + CorrectionsTrait,
     Vec<f32>: From<MeasurementResidualsType>,

@@ -2,7 +2,7 @@ use nalgebra::{allocator::Allocator, DVector, DefaultAllocator, Dyn, Owned, Vect
 
 use types::field_dimensions::FieldDimensions;
 
-use crate::CorrectionsTrait;
+use crate::{jacobian::JacobianViewMut, CorrectionsTrait};
 
 pub type ResidualVector = Vector<f32, Dyn, ResidualVectorStorage>;
 pub type ResidualVectorStorage = Owned<f32, Dyn>;
@@ -13,7 +13,7 @@ pub fn calculate_residuals_from_parameters<ResidualsFromMeasurement>(
     field_dimensions: &FieldDimensions,
 ) -> Option<ResidualVector>
 where
-    ResidualsFromMeasurement: CalculateResiduals,
+    ResidualsFromMeasurement: CalculateDifferentiableResiduals,
     DefaultAllocator:
         Allocator<<ResidualsFromMeasurement::Corrections as CorrectionsTrait>::ParameterCount>,
 {
@@ -39,7 +39,7 @@ where
     Some(residuals)
 }
 
-pub trait CalculateResiduals
+pub trait CalculateDifferentiableResiduals
 where
     DefaultAllocator: Allocator<<Self::Corrections as CorrectionsTrait>::ParameterCount>,
 {
@@ -63,9 +63,12 @@ where
     where
         Self: Sized;
 
-    // fn jacobian(
-    //     corrections: &Self::Corrections,
-    // ) -> Jacobian<<Self::Corrections as CorrectionsTrait>::ParameterCount>;
+    fn jacobian(
+        corrections: &Self::Corrections,
+        measurements: &Self::Measurement,
+        field_dimensions: &FieldDimensions,
+        out: JacobianViewMut<<Self::Corrections as CorrectionsTrait>::ParameterCount>,
+    ) -> Result<(), Self::Error>;
 
     fn residual_count(measurement: &Self::Measurement) -> usize;
 }

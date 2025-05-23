@@ -14,8 +14,8 @@ mod tests {
     use types::{camera_position::CameraPosition, field_dimensions::FieldDimensions};
 
     use crate::{
-        center_circle::extended_corrections::ExtendedCorrections, residuals::CalculateResiduals,
-        solve,
+        center_circle::extended_corrections::ExtendedCorrections,
+        residuals::CalculateDifferentiableResiduals, solve,
     };
 
     use super::{

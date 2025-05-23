@@ -5,16 +5,16 @@ use types::field_dimensions::FieldDimensions;
 
 use crate::{
     corrections::{CorrectionsTrait, ExtrinsicCorrections, Parameters},
-    jacobian::{jacobian_central_difference, Jacobian, JacobianStorage},
+    jacobian::{calculate_jacobian_from_parameters, Jacobian, JacobianStorage},
     residuals::{
-        calculate_residuals_from_parameters, CalculateResiduals, ResidualVector,
+        calculate_residuals_from_parameters, CalculateDifferentiableResiduals, ResidualVector,
         ResidualVectorStorage,
     },
 };
 
 pub struct CalibrationProblem<MeasurementResidualsType>
 where
-    MeasurementResidualsType: CalculateResiduals,
+    MeasurementResidualsType: CalculateDifferentiableResiduals,
     MeasurementResidualsType::Corrections: CorrectionsTrait,
     DefaultAllocator:
         Allocator<<MeasurementResidualsType::Corrections as CorrectionsTrait>::ParameterCount>,
@@ -26,7 +26,7 @@ where
 
 impl<MeasurementResidualsType> CalibrationProblem<MeasurementResidualsType>
 where
-    MeasurementResidualsType: CalculateResiduals,
+    MeasurementResidualsType: CalculateDifferentiableResiduals,
     MeasurementResidualsType::Corrections: Copy + CorrectionsTrait,
     DefaultAllocator:
         Allocator<<MeasurementResidualsType::Corrections as CorrectionsTrait>::ParameterCount>,
@@ -59,7 +59,7 @@ impl<MeasurementResidualsType>
         <MeasurementResidualsType::Corrections as CorrectionsTrait>::ParameterCount,
     > for CalibrationProblem<MeasurementResidualsType>
 where
-    MeasurementResidualsType: CalculateResiduals,
+    MeasurementResidualsType: CalculateDifferentiableResiduals,
     Vec<f32>: From<MeasurementResidualsType>,
     MeasurementResidualsType::Corrections: CorrectionsTrait,
     DefaultAllocator:
@@ -100,7 +100,7 @@ where
         &self,
     ) -> Option<Jacobian<<MeasurementResidualsType::Corrections as CorrectionsTrait>::ParameterCount>>
     {
-        jacobian_central_difference::<MeasurementResidualsType>(
+        calculate_jacobian_from_parameters::<MeasurementResidualsType>(
             &self.parameters,
             &self.measurements,
             &self.field_dimensions,

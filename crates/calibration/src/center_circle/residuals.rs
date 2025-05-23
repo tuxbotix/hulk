@@ -1,5 +1,6 @@
 use coordinate_systems::{Ground, Pixel};
 use linear_algebra::{vector, Point2, Vector2};
+use nalgebra::Dim;
 use projection::{
     camera_projection::InverseCameraProjection, Error as ProjectionError, Projection,
 };
@@ -7,8 +8,10 @@ use projection::{
 use types::field_dimensions::FieldDimensions;
 
 use crate::{
-    center_circle::measurement::Measurement, corrections::get_corrected_camera_matrix,
-    residuals::CalculateResiduals,
+    center_circle::measurement::Measurement,
+    corrections::{get_corrected_camera_matrix, CorrectionsTrait},
+    jacobian::{jacobian_central_difference_mut, JacobianViewMut},
+    residuals::CalculateDifferentiableResiduals,
 };
 
 use super::extended_corrections::ExtendedCorrections;
@@ -17,7 +20,7 @@ pub struct CenterCircleResiduals {
     radial_residuals: Vec<f32>,
 }
 
-impl CalculateResiduals for CenterCircleResiduals {
+impl CalculateDifferentiableResiduals for CenterCircleResiduals {
     type Error = ProjectionError;
     type Measurement = Measurement;
     type Corrections = ExtendedCorrections;
@@ -82,6 +85,15 @@ impl CalculateResiduals for CenterCircleResiduals {
         Ok(Self {
             radial_residuals: residuals,
         })
+    }
+
+    fn jacobian(
+        parameters: &ExtendedCorrections,
+        measurement: &Measurement,
+        field_dimensions: &FieldDimensions,
+        out: JacobianViewMut<<ExtendedCorrections as CorrectionsTrait>::ParameterCount>,
+    ) -> Result<(), ProjectionError> {
+        jacobian_central_difference_mut::<Self>(parameters, measurement, field_dimensions, out)
     }
 }
 

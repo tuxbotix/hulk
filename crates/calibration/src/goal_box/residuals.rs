@@ -1,9 +1,11 @@
 use geometry::Distance;
+use nalgebra::Dim;
 use types::field_dimensions::FieldDimensions;
 
 use crate::{
-    corrections::{get_corrected_camera_matrix, ExtrinsicCorrections},
-    residuals::CalculateResiduals,
+    corrections::{get_corrected_camera_matrix, CorrectionsTrait, ExtrinsicCorrections},
+    jacobian::{jacobian_central_difference_mut, JacobianViewMut},
+    residuals::CalculateDifferentiableResiduals,
 };
 
 use super::{lines::LinesError, measurement::Measurement};
@@ -17,7 +19,7 @@ pub struct GoalBoxResiduals {
     pub distance_between_parallel_line_end_points: f32,
 }
 
-impl CalculateResiduals for GoalBoxResiduals {
+impl CalculateDifferentiableResiduals for GoalBoxResiduals {
     type Error = ResidualsError;
     type Measurement = Measurement;
     type Corrections = ExtrinsicCorrections;
@@ -77,6 +79,15 @@ impl CalculateResiduals for GoalBoxResiduals {
     {
         let residuals = Self::calculate_from(parameters, measurement, field_dimensions)?;
         Ok(residuals.into())
+    }
+
+    fn jacobian(
+        parameters: &ExtrinsicCorrections,
+        measurement: &Measurement,
+        field_dimensions: &FieldDimensions,
+        out: JacobianViewMut<<ExtrinsicCorrections as CorrectionsTrait>::ParameterCount>,
+    ) -> Result<(), ResidualsError> {
+        jacobian_central_difference_mut::<Self>(parameters, measurement, field_dimensions, out)
     }
 }
 

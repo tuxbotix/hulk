@@ -1812,6 +1812,7 @@ dependencies = [
 name = "bevyhavior_simulator"
 version = "0.1.0"
 dependencies = [
+ "approx",
  "ball_filter",
  "bevy",
  "bincode",
@@ -1830,11 +1831,13 @@ dependencies = [
  "geometry",
  "hardware",
  "hula_types",
+ "indicatif",
  "ittapi",
  "linear_algebra",
  "log",
  "nalgebra",
  "ndarray",
+ "object_detection",
  "parameters",
  "parking_lot",
  "path_serde",
@@ -1851,6 +1854,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "types",
+ "vision",
  "walking_engine",
 ]
 
@@ -2037,15 +2041,17 @@ checksum = "6099cdc01846bc367c4e7dd630dc5966dccf36b652fae7a74e17b640411a91b2"
 
 [[package]]
 name = "blake3"
-version = "1.6.1"
+version = "1.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "675f87afced0413c9bb02843499dbbd3882a237645883f71a2b59644a6d2f753"
+checksum = "3888aaa89e4b2a40fca9848e400f6a658a5a3978de7be858e209cafa8be9a4a0"
 dependencies = [
  "arrayref",
  "arrayvec",
  "cc",
  "cfg-if",
  "constant_time_eq",
+ "memmap2",
+ "serde",
 ]
 
 [[package]]
@@ -2170,10 +2176,8 @@ checksum = "2d2c12f985c78475a6b8d629afd0c360260ef34cfef52efccdcfd31972f81c2e"
 name = "calibration"
 version = "0.1.0"
 dependencies = [
- "approx",
  "coordinate_systems",
  "geometry",
- "itertools 0.14.0",
  "levenberg-marquardt",
  "linear_algebra",
  "nalgebra",
@@ -3921,6 +3925,7 @@ dependencies = [
  "coordinate_systems",
  "linear_algebra",
  "nalgebra",
+ "num-traits",
  "path_serde",
  "serde",
 ]
@@ -4528,6 +4533,7 @@ dependencies = [
  "audio",
  "ball_filter",
  "bincode",
+ "blake3",
  "buffered_watch",
  "calibration",
  "chrono",
@@ -4546,6 +4552,7 @@ dependencies = [
  "hardware",
  "hula_types",
  "hulk_manifest",
+ "hulk_widgets",
  "ittapi",
  "linear_algebra",
  "log",
@@ -6535,6 +6542,7 @@ dependencies = [
  "num-traits",
  "path_serde_derive",
  "serde",
+ "serde_json",
  "thiserror 2.0.12",
 ]
 
@@ -8786,13 +8794,14 @@ dependencies = [
 
 [[package]]
 name = "twix"
-version = "0.9.4"
+version = "0.9.5"
 dependencies = [
  "aliveness",
  "argument_parsers",
  "ball_filter",
  "bincode",
  "buffered_watch",
+ "calibration",
  "chrono",
  "clap 4.5.31",
  "color-eyre",
